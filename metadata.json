@@ -1,0 +1,5 @@
+{
+  "name": "ETH Mining Nexus",
+  "description": "A sophisticated web application simulating an ETH cloud mining platform. It features a sleek landing page, wallet connection simulation, and a user dashboard to track mining activities, balance, and referrals.",
+  "requestFramePermissions": []
+}
