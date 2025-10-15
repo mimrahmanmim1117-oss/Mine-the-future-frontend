@@ -1,99 +1,171 @@
+
+
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
-import LandingPage from './components/LandingPage';
-import ProfilePage from './components/ProfilePage';
-import MiningPage from './components/MiningPage';
-import Footer from './components/Footer';
+import type { Page, AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint } from './types';
+import { mockUsers, mockTransactions, mockWithdrawals, mockChartData, mockEvents } from './components/admin/mockData';
+import AdminLayout from './components/admin/AdminLayout';
+// FIX: Update import path for FrontendApp component to resolve file structure issue.
+import FrontendApp from './FrontendApp';
 import ConnectWalletModal from './components/ConnectWalletModal';
+import AdminLoginModal from './components/admin/AdminLoginModal';
 
-export type Page = 'landing' | 'profile' | 'mining';
-
-const App: React.FC = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+function App() {
+  // === STATE MANAGEMENT ===
   const [currentPage, setCurrentPage] = useState<Page>('landing');
-  const [userWalletBalance, setUserWalletBalance] = useState({ usdt: 0, usdc: 0 });
+  const [isConnected, setIsConnected] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminView, setIsAdminView] = useState(false);
+  
+  // Modals
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
+
+  // User Data
+  const [userWalletBalance, setUserWalletBalance] = useState({ usdt: 50000, usdc: 25000 });
   const [platformBalance, setPlatformBalance] = useState({ eth: 0 });
 
-
-  useEffect(() => {
-    // Show modal on first visit
-    const hasVisited = localStorage.getItem('hasVisited');
-    if (!hasVisited) {
-      setShowModal(true);
-      localStorage.setItem('hasVisited', 'true');
-    }
-  }, []);
-
-  const handleConnectWallet = () => {
-    setIsConnected(true);
-    setShowModal(false);
-    // Initialize mock balances for the simulation
-    setUserWalletBalance({ usdt: 5000, usdc: 3000 });
-    setPlatformBalance({ eth: 12.45 });
-    // Automatically navigate to profile after connecting
-    setCurrentPage('profile'); 
-  };
+  // Admin Data (from mock)
+  const [users, setUsers] = useState<AdminUser[]>(mockUsers);
+  const [transactions, setTransactions] = useState<AdminTransaction[]>(mockTransactions);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>(mockWithdrawals);
   
-  const openConnectModal = () => {
-    setShowModal(true);
+  // Site-wide Data
+  const [chartData, setChartData] = useState<ChartDataPoint[]>(mockChartData);
+  const [events, setEvents] = useState<AppEvent[]>(mockEvents);
+
+
+  // === HANDLERS ===
+  const handleNavigate = (page: Page) => {
+    setCurrentPage(page);
   };
 
+  // Connection
+  const handleConnectClick = () => setShowConnectModal(true);
+  const handleConnect = () => {
+    setIsConnected(true);
+    setShowConnectModal(false);
+    setCurrentPage('mining');
+  };
   const handleDisconnect = () => {
     setIsConnected(false);
-    setUserWalletBalance({ usdt: 0, usdc: 0 });
-    setPlatformBalance({ eth: 0 });
     setCurrentPage('landing');
   };
 
-  const navigate = (page: Page) => {
-    if ((page === 'profile' || page === 'mining') && !isConnected) {
-      setShowModal(true);
+  // Admin
+  const handleAdminLoginAttempt = (user: string, pass: string): boolean => {
+    if (user === 'admin' && pass === 'password') {
+      setIsAdminAuthenticated(true);
+      setShowAdminLoginModal(false);
+      setIsAdminView(true);
+      return true;
+    }
+    return false;
+  };
+  const handleAdminLogout = () => {
+    setIsAdminAuthenticated(false);
+    setIsAdminView(false);
+  };
+  const handleEnterAdminView = () => setIsAdminView(true);
+  const handleExitAdminView = () => setIsAdminView(false);
+
+
+  // Mining & Transfers
+  const handleStartMining = (amount: number, from: 'USDT' | 'USDC', eth: number) => {
+    // Deduct from wallet balance
+    setUserWalletBalance(prev => ({ ...prev, [from.toLowerCase()]: prev[from.toLowerCase() as 'usdt' | 'usdc'] - amount }));
+    // Add to platform balance
+    setPlatformBalance(prev => ({ eth: prev.eth + eth }));
+  };
+
+  const handleTransfer = (amount: number) => {
+    if (amount <= platformBalance.eth) {
+      setPlatformBalance(prev => ({ eth: prev.eth - amount }));
+      // In a real app, this would trigger a blockchain transaction.
+      alert(`Successfully transferred ${amount} ETH to your wallet.`);
     } else {
-      setCurrentPage(page);
+      alert('Insufficient balance for transfer.');
     }
   };
 
-  const handleStartMining = (amountToConvert: number, fromCurrency: 'USDT' | 'USDC', ethEquivalent: number) => {
-    // Simulate transferring from external wallet to internal platform balance
-    setUserWalletBalance(prev => ({
-        ...prev,
-        [fromCurrency.toLowerCase()]: prev[fromCurrency.toLowerCase() as keyof typeof prev] - amountToConvert
-    }));
-    setPlatformBalance(prev => ({
-        ...prev,
-        eth: prev.eth + ethEquivalent
-    }));
+  // Admin CRUD Operations
+  const handleUpdateUserStatus = (userId: string, status: AdminUser['status']) => {
+    setUsers(users.map(u => u.id === userId ? { ...u, status } : u));
+  };
+  const handleUpdateWithdrawalStatus = (withdrawalId: string, status: WithdrawalRequest['status']) => {
+    setWithdrawals(withdrawals.map(w => w.id === withdrawalId ? { ...w, status } : w));
+  };
+  const handleChartDataUpdate = (data: ChartDataPoint[]) => setChartData(data);
+  const handleAddEvent = (event: Omit<AppEvent, 'id'>) => {
+    const newEvent = { ...event, id: `evt_${Date.now()}`};
+    setEvents([newEvent, ...events]);
+  };
+  const handleUpdateEvent = (updatedEvent: AppEvent) => {
+    setEvents(events.map(e => e.id === updatedEvent.id ? updatedEvent : e));
+  };
+  const handleDeleteEvent = (eventId: string) => {
+    setEvents(events.filter(e => e.id !== eventId));
   };
 
-  const handleTransferAssets = (amount: number) => {
-    // This simulates transferring ETH from the mining balance back to an "external" wallet
-    setPlatformBalance(prev => ({ ...prev, eth: prev.eth - amount }));
-  };
 
+  useEffect(() => {
+    // Secret key combination to open admin login
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        setShowAdminLoginModal(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  if (isAdminAuthenticated && isAdminView) {
+    return (
+      <AdminLayout
+        onExitAdmin={handleExitAdminView}
+        onLogout={handleAdminLogout}
+        dashboardData={{ users, transactions, withdrawals }}
+        usersData={{ users, onUpdateUserStatus: handleUpdateUserStatus }}
+        transactionsData={{ transactions }}
+        withdrawalsData={{ withdrawals, onUpdateWithdrawalStatus: handleUpdateWithdrawalStatus }}
+        referralsData={{ users }}
+        siteSettingsData={{ chartData, events, onChartDataUpdate: handleChartDataUpdate, onAddEvent: handleAddEvent, onUpdateEvent: handleUpdateEvent, onDeleteEvent: handleDeleteEvent }}
+      />
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-brand-dark font-sans flex flex-col">
-      <Header
+    <>
+      <FrontendApp 
+        currentPage={currentPage}
         isConnected={isConnected}
-        onConnectClick={openConnectModal}
-        onNavigate={navigate}
+        isAdminAuthenticated={isAdminAuthenticated}
+        userWalletBalance={userWalletBalance}
+        platformBalance={platformBalance}
+        chartData={chartData}
+        events={events}
+        onNavigate={handleNavigate}
+        onConnectClick={handleConnectClick}
         onDisconnect={handleDisconnect}
+        // FIX: `handleLogout` was not defined. It should be `handleAdminLogout`.
+        onLogout={handleAdminLogout}
+        onEnterAdminView={handleEnterAdminView}
+        onStartMining={handleStartMining}
+        onTransfer={handleTransfer}
       />
-      <main className="flex-grow">
-        {currentPage === 'landing' && <LandingPage onStartMiningClick={() => navigate('mining')} />}
-        {currentPage === 'profile' && <ProfilePage ethBalance={platformBalance.eth} onTransfer={handleTransferAssets} />}
-        {currentPage === 'mining' && <MiningPage userWalletBalance={userWalletBalance} onStartMining={handleStartMining} onNavigate={navigate} />}
-      </main>
-      <Footer />
-      {showModal && !isConnected && (
+      {showConnectModal && (
         <ConnectWalletModal
-          onClose={() => setShowModal(false)}
-          onConnect={handleConnectWallet}
+          onClose={() => setShowConnectModal(false)}
+          onConnect={handleConnect}
         />
       )}
-    </div>
+      {showAdminLoginModal && !isAdminAuthenticated && (
+        <AdminLoginModal
+          onClose={() => setShowAdminLoginModal(false)}
+          onLoginAttempt={handleAdminLoginAttempt}
+        />
+      )}
+    </>
   );
-};
+}
 
 export default App;

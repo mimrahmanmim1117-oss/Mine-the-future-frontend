@@ -9,6 +9,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      body {
+        background-color: #f1f5f9; /* Fallback */
+        background-image: radial-gradient(circle at top center, #ffffff 0%, #f1f5f9 100%);
+        min-height: 100vh;
+      }
+      .hero-pattern {
+        background-color: #ffffff;
+        background-image: radial-gradient(circle at center, #f1f5f9 1px, transparent 1px);
+        background-size: 1.25rem 1.25rem;
+      }
+    </style>
     <script>
       tailwind.config = {
         theme: {
@@ -19,9 +31,6 @@
             colors: {
               'brand-blue': '#2563eb',
               'brand-blue-light': '#3b82f6',
-              'brand-dark': '#0f172a',
-              'brand-dark-light': '#1e293b',
-              'brand-gray': '#94a3b8',
             },
             animation: {
               'scroll': 'scroll 40s linear infinite',
@@ -52,7 +61,7 @@
 }
 </script>
 </head>
-  <body class="bg-brand-dark text-white">
+  <body class="text-slate-800">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

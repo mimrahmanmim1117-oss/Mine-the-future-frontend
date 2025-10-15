@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { WalletIcon } from './icons/WalletIcon';
+import { TrustWalletIcon } from './icons/TrustWalletIcon';
 
 interface ConnectWalletModalProps {
   onClose: () => void;
@@ -8,34 +8,35 @@ interface ConnectWalletModalProps {
 }
 
 const wallets = [
-  { name: 'MetaMask', icon: <WalletIcon /> },
-  { name: 'Coinbase Wallet', icon: <WalletIcon /> },
-  { name: 'WalletConnect', icon: <WalletIcon /> },
-  { name: 'Ledger', icon: <WalletIcon /> },
+  { name: 'Trust Wallet', icon: <TrustWalletIcon className="w-8 h-8" /> },
 ];
 
 const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({ onClose, onConnect }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center backdrop-blur-sm">
-      <div className="bg-brand-dark-light rounded-lg shadow-2xl p-8 max-w-sm w-full border border-gray-700">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-white">Connect Wallet</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">&times;</button>
+    <div className="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 flex justify-center items-center backdrop-blur-sm p-4">
+      <div className="bg-white text-slate-900 rounded-lg shadow-2xl max-w-sm w-full border border-slate-200 overflow-hidden">
+        <div className="p-6 bg-slate-50 border-b border-slate-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Connect Wallet</h2>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-800 transition-colors text-3xl leading-none">&times;</button>
+          </div>
         </div>
-        <p className="text-brand-gray mb-6">Connect your wallet to start mining and manage your assets.</p>
-        <div className="space-y-4">
-          {wallets.map((wallet) => (
-            <button
-              key={wallet.name}
-              onClick={onConnect}
-              className="w-full flex items-center p-4 bg-gray-800 hover:bg-gray-700 rounded-md transition-colors duration-200"
-            >
-              {wallet.icon}
-              <span className="ml-4 font-medium text-white">{wallet.name}</span>
-            </button>
-          ))}
+        <div className="p-6">
+          <p className="text-slate-600 mb-6">Confirm connection with your wallet to start mining and manage your assets.</p>
+          <div className="space-y-4">
+            {wallets.map((wallet) => (
+              <button
+                key={wallet.name}
+                onClick={onConnect}
+                className="w-full flex items-center p-4 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors duration-200"
+              >
+                {wallet.icon}
+                <span className="ml-4 font-medium">{wallet.name}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500 mt-6 text-center">By connecting your wallet, you agree to our Terms of Service and Privacy Policy.</p>
         </div>
-        <p className="text-xs text-brand-gray mt-6 text-center">By connecting your wallet, you agree to our Terms of Service and Privacy Policy.</p>
       </div>
     </div>
   );

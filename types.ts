@@ -1,28 +1,45 @@
-export interface FaqItem {
-  question: string;
-  answer: string;
+
+export type Page = 'landing' | 'mining' | 'profile';
+
+export interface AdminUser {
+  id: string;
+  walletAddress: string;
+  ipAddress: string;
+  location: string;
+  joinDate: string;
+  status: 'Active' | 'Suspended' | 'Pending';
+  ethBalance: number;
+  invitationParent: string | null;
+  referrals: number;
 }
 
-export interface Testimonial {
-  quote: string;
-  name: string;
-  location: string;
-  avatar: string;
+export interface AdminTransaction {
+  id: string;
+  userWallet: string;
+  timestamp: string;
+  amount: number;
+  currency: 'USDT' | 'USDC';
+  ethEquivalent: number;
+  status: 'Completed' | 'Pending' | 'Failed';
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  userWallet: string;
+  timestamp: string;
+  amount: number;
+  status: 'Approved' | 'Rejected' | 'Pending';
 }
 
 export interface AppEvent {
-  date: {
-    day: string;
-    month: string;
-  };
+  id: string;
   title: string;
+  date: string;
   description: string;
-  status: 'Upcoming' | 'Joined' | 'Completed';
+  type: 'update' | 'announcement' | 'milestone';
 }
 
-export interface Referral {
-  id: string;
-  walletAddress: string;
-  status: 'Active' | 'Inactive';
-  earnings: number;
+export interface ChartDataPoint {
+  name: string;
+  value: number;
 }
