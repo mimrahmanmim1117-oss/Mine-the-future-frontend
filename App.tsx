@@ -61,7 +61,7 @@ function App() {
     }
     return false;
   };
-  const handleAdminLogout = () => {
+  const handleLogout = () => {
     setIsAdminAuthenticated(false);
     setIsAdminView(false);
   };
@@ -122,7 +122,7 @@ function App() {
     return (
       <AdminLayout
         onExitAdmin={handleExitAdminView}
-        onLogout={handleAdminLogout}
+        onLogout={handleLogout}
         dashboardData={{ users, transactions, withdrawals }}
         usersData={{ users, onUpdateUserStatus: handleUpdateUserStatus }}
         transactionsData={{ transactions }}
@@ -146,8 +146,7 @@ function App() {
         onNavigate={handleNavigate}
         onConnectClick={handleConnectClick}
         onDisconnect={handleDisconnect}
-        // FIX: `handleLogout` was not defined. It should be `handleAdminLogout`.
-        onLogout={handleAdminLogout}
+        onLogout={handleLogout}
         onEnterAdminView={handleEnterAdminView}
         onStartMining={handleStartMining}
         onTransfer={handleTransfer}
