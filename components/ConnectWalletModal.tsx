@@ -1,6 +1,10 @@
 
+
+
 import React from 'react';
 import { TrustWalletIcon } from './icons/TrustWalletIcon';
+import { MetaMaskIcon } from './icons/MetaMaskIcon';
+import { CoinbaseIcon } from './icons/CoinbaseIcon';
 
 interface ConnectWalletModalProps {
   onClose: () => void;
@@ -8,6 +12,8 @@ interface ConnectWalletModalProps {
 }
 
 const wallets = [
+  { name: 'MetaMask', icon: <MetaMaskIcon className="w-8 h-8" /> },
+  { name: 'Coinbase Wallet', icon: <CoinbaseIcon className="w-8 h-8" /> },
   { name: 'Trust Wallet', icon: <TrustWalletIcon className="w-8 h-8" /> },
 ];
 

@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import type { AdminTransaction, AdminUser, WithdrawalRequest } from '../../types';
+import type { AdminTransaction, AdminUser, WithdrawalRequest, ChartDataPoint } from '../../types';
 import { UsersIcon } from '../icons/UsersIcon';
 import { EthereumLogo } from '../icons/EthereumLogo';
 import { TransferIcon } from '../icons/TransferIcon';
 import { WalletIcon } from '../icons/WalletIcon';
+import * as api from './api';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
 
+interface DashboardData {
+    users: AdminUser[];
+    transactions: AdminTransaction[];
+    withdrawals: WithdrawalRequest[];
+}
 
-const chartData = [
+const chartData: ChartDataPoint[] = [
   { name: 'Mon', value: 12.5 },
   { name: 'Tue', value: 15.2 },
   { name: 'Wed', value: 13.8 },
@@ -16,12 +24,6 @@ const chartData = [
   { name: 'Sat', value: 25.9 },
   { name: 'Sun', value: 23.3 },
 ];
-
-interface AdminDashboardProps {
-    users: AdminUser[];
-    transactions: AdminTransaction[];
-    withdrawals: WithdrawalRequest[];
-}
 
 const InfoCard: React.FC<{ title: string; value: string; icon: React.ReactNode }> = ({ title, value, icon }) => (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex items-center space-x-4">
@@ -35,18 +37,41 @@ const InfoCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
     </div>
 );
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, transactions, withdrawals }) => {
-    const recentTransactions = [...transactions].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
+const AdminDashboard: React.FC = () => {
+    const [data, setData] = useState<DashboardData | null>(null);
+    const [error, setError] = useState<Error | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
+                const result = await api.fetchDashboardData();
+                setData(result);
+            } catch (err) {
+                setError(err as Error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    if (isLoading) return <LoadingSpinner />;
+    if (error) return <ErrorDisplay error={error} />;
+    if (!data) return null;
+
+    const { users, transactions, withdrawals } = data;
+
+    const recentTransactions = [...transactions].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
     const totalEthMined = users.reduce((sum, user) => sum + user.ethBalance, 0);
-    const totalValueLocked = totalEthMined * 3500; // Assuming static ETH price for simplicity
+    const totalValueLocked = totalEthMined * 3500;
     const pendingWithdrawalsAmount = withdrawals.filter(w => w.status === 'Pending').reduce((sum, w) => sum + w.amount, 0);
     const pendingUsersCount = users.filter(u => u.status === 'Pending').length;
 
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-8 text-slate-900">Dashboard</h1>
-            
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <InfoCard title="Total Users" value={users.length.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-brand-blue" />} />
                 <InfoCard title="Total ETH Mined" value={totalEthMined.toFixed(2)} icon={<EthereumLogo className="w-6 h-6 text-brand-blue" />} />

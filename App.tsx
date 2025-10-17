@@ -1,13 +1,11 @@
-
-
 import React, { useState, useEffect } from 'react';
-import type { Page, AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint } from './types';
-import { mockUsers, mockTransactions, mockWithdrawals, mockChartData, mockEvents } from './components/admin/mockData';
+import type { Page, AdminUser } from './types';
+import { mockUsers } from './components/admin/mockData';
 import AdminLayout from './components/admin/AdminLayout';
-// FIX: Update import path for FrontendApp component to resolve file structure issue.
 import FrontendApp from './FrontendApp';
 import ConnectWalletModal from './components/ConnectWalletModal';
 import AdminLoginModal from './components/admin/AdminLoginModal';
+import EngagementModal from './components/EngagementModal';
 
 function App() {
   // === STATE MANAGEMENT ===
@@ -19,19 +17,12 @@ function App() {
   // Modals
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
-  // User Data
+  // User Data (for frontend simulation)
   const [userWalletBalance, setUserWalletBalance] = useState({ usdt: 50000, usdc: 25000 });
   const [platformBalance, setPlatformBalance] = useState({ eth: 0 });
-
-  // Admin Data (from mock)
   const [users, setUsers] = useState<AdminUser[]>(mockUsers);
-  const [transactions, setTransactions] = useState<AdminTransaction[]>(mockTransactions);
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>(mockWithdrawals);
-  
-  // Site-wide Data
-  const [chartData, setChartData] = useState<ChartDataPoint[]>(mockChartData);
-  const [events, setEvents] = useState<AppEvent[]>(mockEvents);
 
 
   // === HANDLERS ===
@@ -40,7 +31,10 @@ function App() {
   };
 
   // Connection
-  const handleConnectClick = () => setShowConnectModal(true);
+  const handleConnectClick = () => {
+    setShowWelcomeModal(false);
+    setShowConnectModal(true);
+  };
   const handleConnect = () => {
     setIsConnected(true);
     setShowConnectModal(false);
@@ -69,7 +63,7 @@ function App() {
   const handleExitAdminView = () => setIsAdminView(false);
 
 
-  // Mining & Transfers
+  // Mining & Transfers (for frontend simulation)
   const handleStartMining = (amount: number, from: 'USDT' | 'USDC', eth: number) => {
     // Deduct from wallet balance
     setUserWalletBalance(prev => ({ ...prev, [from.toLowerCase()]: prev[from.toLowerCase() as 'usdt' | 'usdc'] - amount }));
@@ -87,25 +81,6 @@ function App() {
     }
   };
 
-  // Admin CRUD Operations
-  const handleUpdateUserStatus = (userId: string, status: AdminUser['status']) => {
-    setUsers(users.map(u => u.id === userId ? { ...u, status } : u));
-  };
-  const handleUpdateWithdrawalStatus = (withdrawalId: string, status: WithdrawalRequest['status']) => {
-    setWithdrawals(withdrawals.map(w => w.id === withdrawalId ? { ...w, status } : w));
-  };
-  const handleChartDataUpdate = (data: ChartDataPoint[]) => setChartData(data);
-  const handleAddEvent = (event: Omit<AppEvent, 'id'>) => {
-    const newEvent = { ...event, id: `evt_${Date.now()}`};
-    setEvents([newEvent, ...events]);
-  };
-  const handleUpdateEvent = (updatedEvent: AppEvent) => {
-    setEvents(events.map(e => e.id === updatedEvent.id ? updatedEvent : e));
-  };
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents(events.filter(e => e.id !== eventId));
-  };
-
 
   useEffect(() => {
     // Secret key combination to open admin login
@@ -115,6 +90,14 @@ function App() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
+
+    // Show welcome modal on first visit of the session
+    const hasVisited = sessionStorage.getItem('hasVisited');
+    if (!hasVisited) {
+        setShowWelcomeModal(true);
+        sessionStorage.setItem('hasVisited', 'true');
+    }
+
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
@@ -123,15 +106,13 @@ function App() {
       <AdminLayout
         onExitAdmin={handleExitAdminView}
         onLogout={handleLogout}
-        dashboardData={{ users, transactions, withdrawals }}
-        usersData={{ users, onUpdateUserStatus: handleUpdateUserStatus }}
-        transactionsData={{ transactions }}
-        withdrawalsData={{ withdrawals, onUpdateWithdrawalStatus: handleUpdateWithdrawalStatus }}
-        referralsData={{ users }}
-        siteSettingsData={{ chartData, events, onChartDataUpdate: handleChartDataUpdate, onAddEvent: handleAddEvent, onUpdateEvent: handleUpdateEvent, onDeleteEvent: handleDeleteEvent }}
       />
     );
   }
+
+  // Derive user-specific data for the profile page
+  const currentUserWallet = "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B"; // This would be dynamic in a real app
+  const userReferrals = users.filter(u => u.invitationParent === currentUserWallet);
 
   return (
     <>
@@ -141,8 +122,7 @@ function App() {
         isAdminAuthenticated={isAdminAuthenticated}
         userWalletBalance={userWalletBalance}
         platformBalance={platformBalance}
-        chartData={chartData}
-        events={events}
+        userReferrals={userReferrals}
         onNavigate={handleNavigate}
         onConnectClick={handleConnectClick}
         onDisconnect={handleDisconnect}
@@ -161,6 +141,12 @@ function App() {
         <AdminLoginModal
           onClose={() => setShowAdminLoginModal(false)}
           onLoginAttempt={handleAdminLoginAttempt}
+        />
+      )}
+      {showWelcomeModal && !isConnected && (
+        <EngagementModal
+          onClose={() => setShowWelcomeModal(false)}
+          onConnect={handleConnectClick}
         />
       )}
     </>

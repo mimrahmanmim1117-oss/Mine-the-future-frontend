@@ -1,10 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { AdminUser } from '../../types';
-
-interface AdminUserManagementProps {
-    users: AdminUser[];
-    onUpdateUserStatus: (userId: string, status: AdminUser['status']) => void;
-}
+import * as api from './api';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
 
 const getStatusColor = (status: AdminUser['status']) => {
     switch (status) {
@@ -14,10 +12,47 @@ const getStatusColor = (status: AdminUser['status']) => {
     }
 };
 
-const AdminUserManagement: React.FC<AdminUserManagementProps> = ({ users, onUpdateUserStatus }) => {
+const AdminUserManagement: React.FC = () => {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const fetchUsersData = async () => {
+    try {
+        setIsLoading(true);
+        setError(null);
+        const result = await api.fetchUsers();
+        setUsers(result);
+    } catch (err) {
+        setError(err as Error);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsersData();
+  }, []);
+  
+  const handleUpdateUserStatus = async (userId: string, status: AdminUser['status']) => {
+      // Optimistically update UI
+      setUsers(users.map(u => u.id === userId ? { ...u, status } : u));
+      try {
+        await api.updateUserStatus(userId, status);
+        // Optionally refetch to confirm, but optimistic is faster UX
+        // await fetchUsersData(); 
+      } catch (err) {
+        setError(err as Error);
+        // Revert UI on failure
+        fetchUsersData();
+      }
+  };
+  
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorDisplay error={error} />;
+
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8 text-slate-900">User Management</h1>
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -38,7 +73,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = ({ users, onUpda
                   <td className="p-4 font-mono text-slate-700 truncate" title={user.walletAddress}>{`${user.walletAddress.substring(0, 6)}...${user.walletAddress.substring(user.walletAddress.length - 4)}`}</td>
                   <td className="p-4 font-mono text-slate-700">{user.ipAddress}</td>
                   <td className="p-4 text-slate-700">{user.location}</td>
-                  <td className="p-4 font-mono text-slate-700 truncate" title={user.invitationParent}>
+                  <td className="p-4 font-mono text-slate-700 truncate" title={user.invitationParent || undefined}>
                     {user.invitationParent ? `${user.invitationParent.substring(0, 6)}...${user.invitationParent.substring(user.invitationParent.length - 4)}` : 'N/A'}
                   </td>
                   <td className="p-4 text-slate-700">{user.joinDate}</td>
@@ -47,17 +82,17 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = ({ users, onUpda
                   </td>
                   <td className="p-4 text-center">
                     {user.status === 'Pending' && (
-                      <button onClick={() => onUpdateUserStatus(user.id, 'Active')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                      <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                         Approve
                       </button>
                     )}
                     {user.status === 'Active' && (
-                      <button onClick={() => onUpdateUserStatus(user.id, 'Suspended')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                      <button onClick={() => handleUpdateUserStatus(user.id, 'Suspended')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                         Suspend
                       </button>
                     )}
                     {user.status === 'Suspended' && (
-                      <button onClick={() => onUpdateUserStatus(user.id, 'Active')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                      <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                         Re-activate
                       </button>
                     )}

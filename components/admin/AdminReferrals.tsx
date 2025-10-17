@@ -1,6 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { AdminUser } from '../../types';
 import { UsersIcon } from '../icons/UsersIcon';
+import * as api from './api';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
+
 
 interface ReferralNodeProps {
   user: AdminUser;
@@ -47,33 +51,46 @@ const ReferralNode: React.FC<ReferralNodeProps> = ({ user, children, allUsers, l
   );
 };
 
-interface AdminReferralsProps {
-  users: AdminUser[];
-}
+const AdminReferrals: React.FC = () => {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-const AdminReferrals: React.FC<AdminReferralsProps> = ({ users }) => {
+  useEffect(() => {
+    const fetchData = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const result = await api.fetchUsers();
+            setUsers(result);
+        } catch (err) {
+            setError(err as Error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
+  }, []);
+
   const referralTree = useMemo(() => {
-    const usersByWallet = users.reduce((acc, user) => {
-      acc[user.walletAddress] = { ...user, children: [] };
-      return acc;
-    }, {} as any);
-
-    const rootUsers: AdminUser[] = [];
+    if (!users || users.length === 0) return [];
     
+    const rootUsers: AdminUser[] = [];
     users.forEach(user => {
-      if (user.invitationParent && usersByWallet[user.invitationParent]) {
-        // This is a child, do nothing here as we build from parents
-      } else {
+      if (!user.invitationParent || !users.find(u => u.walletAddress === user.invitationParent)) {
         rootUsers.push(user);
       }
     });
 
     return rootUsers;
   }, [users]);
+  
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorDisplay error={error} />;
+
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8 text-slate-900">Referral Chains</h1>
       <p className="text-slate-600 mb-6">Visual representation of user invitation hierarchies.</p>
       
       <div className="space-y-6">

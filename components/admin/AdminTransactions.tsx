@@ -1,14 +1,33 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { AdminTransaction } from '../../types';
+import * as api from './api';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
 
-interface AdminTransactionsProps {
-    transactions: AdminTransaction[];
-}
-
-const AdminTransactions: React.FC<AdminTransactionsProps> = ({ transactions }) => {
+const AdminTransactions: React.FC = () => {
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  
   const [filter, setFilter] = useState<'all' | 'USDT' | 'USDC'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Completed' | 'Pending' | 'Failed'>('all');
 
+  useEffect(() => {
+    const fetchData = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const result = await api.fetchTransactions();
+            setTransactions(result);
+        } catch (err) {
+            setError(err as Error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
+  }, []);
+  
   const filteredTransactions = useMemo(() => {
     return transactions
       .filter(tx => filter === 'all' || tx.currency === filter)
@@ -23,10 +42,12 @@ const AdminTransactions: React.FC<AdminTransactionsProps> = ({ transactions }) =
     }
   };
 
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorDisplay error={error} />;
+
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Transactions</h1>
         <div className="flex items-center space-x-4">
             {/* Currency Filter */}
             <div className="flex items-center space-x-2 bg-white p-1 rounded-md border border-slate-300">

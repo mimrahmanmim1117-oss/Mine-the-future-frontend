@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { ChartDataPoint, AppEvent } from '../types';
 import { EthereumLogo } from './icons/EthereumLogo';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { ComputerIcon } from './icons/ComputerIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
-import { UserIcon } from './icons/UserIcon';
+import * as api from './admin/api'; // Use the shared API
 
 // Partner Icons
 import { MetaMaskIcon } from './icons/MetaMaskIcon';
@@ -28,8 +29,6 @@ import { DataPrivacyIcon } from './icons/DataPrivacyIcon';
 
 interface LandingPageProps {
   onStartMiningClick: () => void;
-  chartData: ChartDataPoint[];
-  events: AppEvent[];
 }
 
 const faqs = [
@@ -55,19 +54,40 @@ const investors = [
     {
         name: "Michael Terpin",
         title: "Founder, CoinAgenda",
-        bio: "A serial entrepreneur and investor in the blockchain space since 2013. Michael brings unparalleled experience and a vast network to the project."
+        bio: "A serial entrepreneur and investor in the blockchain space since 2013. Michael brings unparalleled experience and a vast network.",
+        image: "https://i.pravatar.cc/150?img=53"
     },
     {
         name: "Dr. Anna Becker",
         title: "CEO, EndoTech",
-        bio: "With a Ph.D. in AI, Dr. Becker provides strategic guidance on algorithmic efficiency and scaling our mining operations sustainably."
+        bio: "With a Ph.D. in AI, Dr. Becker provides strategic guidance on algorithmic efficiency and scaling our mining operations sustainably.",
+        image: "https://i.pravatar.cc/150?img=36"
     },
     {
-        name: "James Crypto",
+        name: "James 'Crypto' Sullivan",
         title: "Partner, Block Ventures",
-        bio: "James is a renowned venture capitalist who specializes in early-stage decentralized finance and infrastructure projects."
+        bio: "James is a renowned venture capitalist who specializes in early-stage decentralized finance and infrastructure projects.",
+        image: "https://i.pravatar.cc/150?img=14"
+    },
+    {
+        name: "Elena Petrova",
+        title: "Head of Research, DeFi Analytics",
+        bio: "Elena's deep understanding of market trends and tokenomics helps guide our platform's long-term financial strategies.",
+        image: "https://i.pravatar.cc/150?img=25"
+    },
+    {
+        name: "Kenji Tanaka",
+        title: "Lead Security Auditor",
+        bio: "A cybersecurity expert with a focus on smart contracts, Kenji ensures our platform's infrastructure remains secure and resilient.",
+        image: "https://i.pravatar.cc/150?img=60"
+    },
+    {
+        name: "David Chen",
+        title: "Former ETH Core Developer",
+        bio: "David's firsthand experience with the Ethereum protocol provides invaluable technical oversight and ensures our operations are optimized.",
+        image: "https://i.pravatar.cc/150?img=32"
     }
-]
+];
 
 const partners = [
     { name: 'MetaMask', icon: <MetaMaskIcon className="h-10 w-auto" /> },
@@ -114,8 +134,30 @@ const FeatureCard: React.FC<{ icon: React.ReactNode, title: string, description:
     </div>
 );
 
-const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick, chartData, events }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [events, setEvents] = useState<AppEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const settings = await api.publicFetchSiteSettings();
+        setChartData(settings.chartData);
+        setEvents(settings.events);
+      } catch (error) {
+        console.error("Failed to fetch site settings:", error);
+        // Set to default empty state on error
+        setChartData([]);
+        setEvents([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleFaqToggle = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -170,21 +212,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick, chartData
           <div className="lg:col-span-2">
             <h2 className="text-3xl font-bold mb-6 text-slate-900">Live Mining Pool Performance (ETH)</h2>
             <div className="w-full h-80 bg-slate-50 p-4 rounded-lg border border-slate-200">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="name" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#1e293b' }} />
-                    <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 8, stroke: '#2563eb', fill: '#fff' }} />
-                </LineChart>
-              </ResponsiveContainer>
+              {isLoading ? <div className="flex items-center justify-center h-full text-slate-500">Loading Chart...</div> :
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="name" stroke="#64748b" />
+                      <YAxis stroke="#64748b" domain={['dataMin - 5', 'dataMax + 5']} />
+                      <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#1e293b' }} />
+                      <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 8, stroke: '#2563eb', fill: '#fff' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              }
             </div>
           </div>
           <div>
             <h2 className="text-3xl font-bold mb-6 text-slate-900">Latest News & Events</h2>
             <div className="space-y-4">
-              {events.slice(0, 3).map(event => (
+              {isLoading ? <div className="text-slate-500">Loading Events...</div> : 
+              events.length > 0 ? events.slice(0, 3).map(event => (
                 <div 
                   key={event.id}
                   className="w-full text-left bg-slate-50 p-4 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
@@ -193,7 +238,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick, chartData
                   <h4 className="font-semibold text-slate-800">{event.title}</h4>
                   <p className="text-sm text-slate-600">{event.description}</p>
                 </div>
-              ))}
+              )) : <p className="text-slate-500">No events scheduled.</p>}
             </div>
           </div>
         </div>
@@ -203,19 +248,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick, chartData
       <section className="py-20 bg-transparent">
           <div className="container mx-auto px-4">
               <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Ongoing & Upcoming Events</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {events.map(event => (
-                      <div key={event.id} className="bg-white p-6 rounded-lg border border-slate-200 hover:border-brand-blue/30 flex flex-col shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
-                          <span className={`text-xs font-bold uppercase py-1 px-2 rounded-full self-start mb-3 ${
-                              event.type === 'milestone' ? 'bg-purple-100 text-purple-700' :
-                              event.type === 'update' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>{event.type}</span>
-                          <h3 className="text-xl font-bold mb-2 text-slate-900">{event.title}</h3>
-                          <p className="text-sm text-slate-600 mb-4 flex-grow">{event.description}</p>
-                          <p className="text-xs text-slate-500 mt-auto">{new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                      </div>
-                  ))}
-              </div>
+               {isLoading ? <div className="text-center text-slate-500">Loading Events...</div> :
+                events.length > 0 ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {events.map(event => (
+                        <div key={event.id} className="bg-white p-6 rounded-lg border border-slate-200 hover:border-brand-blue/30 flex flex-col shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
+                            <span className={`text-xs font-bold uppercase py-1 px-2 rounded-full self-start mb-3 ${
+                                event.type === 'milestone' ? 'bg-purple-100 text-purple-700' :
+                                event.type === 'update' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                            }`}>{event.type}</span>
+                            <h3 className="text-xl font-bold mb-2 text-slate-900">{event.title}</h3>
+                            <p className="text-sm text-slate-600 mb-4 flex-grow">{event.description}</p>
+                            <p className="text-xs text-slate-500 mt-auto">{new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        </div>
+                    ))}
+                </div>
+                ) : <p className="text-center text-slate-500">There are no upcoming events at this time.</p>
+              }
           </div>
       </section>
 
@@ -246,12 +295,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick, chartData
       <section className="py-20 bg-transparent">
           <div className="container mx-auto px-4">
               <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Our Investors & Backers</h2>
-              <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
                   {investors.map((investor) => (
                        <div key={investor.name} className="bg-white p-8 rounded-lg border border-slate-200 hover:border-brand-blue/30 text-center shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
-                           <div className="w-24 h-24 rounded-full bg-slate-200 mx-auto mb-4 flex items-center justify-center">
-                               <UserIcon className="w-12 h-12 text-slate-500" />
-                           </div>
+                           <img src={investor.image} alt={investor.name} className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-slate-100" />
                            <h3 className="text-xl font-bold text-slate-900">{investor.name}</h3>
                            <p className="text-brand-blue font-semibold mb-3">{investor.title}</p>
                            <p className="text-slate-600 text-sm">{investor.bio}</p>

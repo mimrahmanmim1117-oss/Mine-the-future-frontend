@@ -1,12 +1,10 @@
-
 import React from 'react';
-// FIX: The component was moved from the 'components' directory to the root. The import paths are updated accordingly.
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
 import ProfilePage from './components/ProfilePage';
 import MiningPage from './components/MiningPage';
 import Footer from './components/Footer';
-import type { Page, AppEvent, ChartDataPoint } from './types';
+import type { Page, AdminUser } from './types';
 import ConnectPage from './components/ConnectPage';
 
 interface FrontendAppProps {
@@ -15,8 +13,7 @@ interface FrontendAppProps {
   isAdminAuthenticated: boolean;
   userWalletBalance: { usdt: number; usdc: number };
   platformBalance: { eth: number };
-  chartData: ChartDataPoint[];
-  events: AppEvent[];
+  userReferrals: AdminUser[];
   onNavigate: (page: Page) => void;
   onConnectClick: () => void;
   onDisconnect: () => void;
@@ -33,8 +30,7 @@ const FrontendApp: React.FC<FrontendAppProps> = (props) => {
     isAdminAuthenticated,
     userWalletBalance,
     platformBalance,
-    chartData,
-    events,
+    userReferrals,
     onNavigate,
     onConnectClick,
     onDisconnect,
@@ -67,13 +63,18 @@ const FrontendApp: React.FC<FrontendAppProps> = (props) => {
   const renderPage = () => {
     switch (currentPage) {
       case 'landing':
-        return <LandingPage onStartMiningClick={() => onNavigate('mining')} chartData={chartData} events={events} />;
+        return <LandingPage onStartMiningClick={() => onNavigate('mining')} />;
       case 'profile':
-        return <ProfilePage ethBalance={platformBalance.eth} onTransfer={onTransfer} />;
+        return <ProfilePage 
+            ethBalance={platformBalance.eth} 
+            onTransfer={onTransfer}
+            userWalletBalance={userWalletBalance}
+            referrals={userReferrals}
+        />;
       case 'mining':
         return <MiningPage userWalletBalance={userWalletBalance} onStartMining={onStartMining} onNavigate={onNavigate} />;
       default:
-        return <LandingPage onStartMiningClick={() => onNavigate('mining')} chartData={chartData} events={events} />;
+        return <LandingPage onStartMiningClick={() => onNavigate('mining')} />;
     }
   };
 

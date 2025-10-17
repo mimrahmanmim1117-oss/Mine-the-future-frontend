@@ -1,11 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { WithdrawalRequest } from '../../types';
 import { EthereumLogo } from '../icons/EthereumLogo';
-
-interface AdminWithdrawalsProps {
-    withdrawals: WithdrawalRequest[];
-    onUpdateWithdrawalStatus: (withdrawalId: string, status: WithdrawalRequest['status']) => void;
-}
+import * as api from './api';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorDisplay from './ErrorDisplay';
 
 const getStatusColor = (status: WithdrawalRequest['status']) => {
     switch (status) {
@@ -15,10 +13,43 @@ const getStatusColor = (status: WithdrawalRequest['status']) => {
     }
 };
 
-const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onUpdateWithdrawalStatus }) => {
+const AdminWithdrawals: React.FC = () => {
+    const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+    const [error, setError] = useState<Error | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+
+    const fetchWithdrawalsData = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const result = await api.fetchWithdrawals();
+            setWithdrawals(result);
+        } catch (err) {
+            setError(err as Error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchWithdrawalsData();
+    }, []);
+
+    const handleUpdateWithdrawalStatus = async (withdrawalId: string, status: WithdrawalRequest['status']) => {
+        setWithdrawals(withdrawals.map(w => w.id === withdrawalId ? { ...w, status } : w));
+        try {
+            await api.updateWithdrawalStatus(withdrawalId, status);
+        } catch (err) {
+            setError(err as Error);
+            fetchWithdrawalsData(); // Revert on failure
+        }
+    };
+
+    if (isLoading) return <LoadingSpinner />;
+    if (error) return <ErrorDisplay error={error} />;
+
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-8 text-slate-900">Withdrawal Requests</h1>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -46,10 +77,10 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onUpda
                                     <td className="p-4 text-center space-x-2">
                                         {w.status === 'Pending' && (
                                             <>
-                                                <button onClick={() => onUpdateWithdrawalStatus(w.id, 'Approved')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Approved')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                                                     Approve
                                                 </button>
-                                                <button onClick={() => onUpdateWithdrawalStatus(w.id, 'Rejected')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Rejected')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                                                     Reject
                                                 </button>
                                             </>

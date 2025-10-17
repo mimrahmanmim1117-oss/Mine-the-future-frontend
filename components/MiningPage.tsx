@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Page } from '../types';
 import { EthereumLogo } from './icons/EthereumLogo';
@@ -160,7 +161,7 @@ const MiningPage: React.FC<MiningPageProps> = ({ userWalletBalance, onStartMinin
                         </button>
                         </div>
                         {copyStatus[currency] && <p className="text-green-600 text-xs mt-2">{copyStatus[currency]}</p>}
-                        <p className="text-xs text-yellow-600 mt-2">Send only {currency} (ERC-20) to this address.</p>
+                        <p className="text-xs text-yellow-600 mt-2">Send only {currency} (TRC-20) to this address.</p>
                     </div>
                     ))}
                 </div>

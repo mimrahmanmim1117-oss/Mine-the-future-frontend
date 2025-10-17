@@ -1,5 +1,6 @@
-
 export type Page = 'landing' | 'mining' | 'profile';
+
+export type AdminPage = 'dashboard' | 'users' | 'wallets' | 'deposits' | 'withdrawals' | 'team' | 'chart' | 'events' | 'analysis' | 'settings';
 
 export interface AdminUser {
   id: string;

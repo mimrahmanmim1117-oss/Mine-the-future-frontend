@@ -1,70 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardIcon } from '../icons/DashboardIcon';
 import { UsersIcon } from '../icons/UsersIcon';
-import { TransactionsIcon } from '../icons/TransactionsIcon';
 import { LogoutIcon } from '../icons/LogoutIcon';
 import { EthereumLogo } from '../icons/EthereumLogo';
+import { HomeIcon } from '../icons/HomeIcon';
+import { WifiIcon } from '../icons/WifiIcon';
+import { WifiOffIcon } from '../icons/WifiOffIcon';
+import { ChartBarIcon } from '../icons/ChartBarIcon';
+import { CalendarIcon } from '../icons/CalendarIcon';
+import { SparklesIcon } from '../icons/SparklesIcon';
+
+import type { AdminPage } from '../../types';
+import * as api from './api';
+
 import AdminDashboard from './AdminDashboard';
 import AdminUserManagement from './AdminUserManagement';
 import AdminTransactions from './AdminTransactions';
-import { HomeIcon } from '../icons/HomeIcon';
-import type { AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint } from '../../types';
-import { WithdrawalIcon } from '../icons/WithdrawalIcon';
-import { ReferralIcon } from '../icons/ReferralIcon';
-import { SettingsIcon } from '../icons/SettingsIcon';
 import AdminWithdrawals from './AdminWithdrawals';
 import AdminReferrals from './AdminReferrals';
 import AdminSiteSettings from './AdminSiteSettings';
+import AdminChartManagement from './AdminChartManagement';
+import AdminEventManagement from './AdminEventManagement';
+import AdminAnalysis from './AdminAnalysis';
 
-type AdminPage = 'dashboard' | 'users' | 'transactions' | 'withdrawals' | 'referrals' | 'settings';
+import { WalletIcon } from '../icons/WalletIcon';
+import { TransactionsIcon } from '../icons/TransactionsIcon';
+import { WithdrawalIcon } from '../icons/WithdrawalIcon';
+import { ReferralIcon } from '../icons/ReferralIcon';
+import { SettingsIcon } from '../icons/SettingsIcon';
+
+// Placeholder component for new pages
+const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
+    <div>
+        <h1 className="text-3xl font-bold mb-8 text-slate-900">{title}</h1>
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+            <p className="text-slate-600">This page is under construction. Backend logic can be implemented here.</p>
+        </div>
+    </div>
+);
+
 
 interface AdminLayoutProps {
   onExitAdmin: () => void;
   onLogout: () => void;
-  dashboardData: { users: AdminUser[]; transactions: AdminTransaction[]; withdrawals: WithdrawalRequest[]; };
-  usersData: { users: AdminUser[]; onUpdateUserStatus: (userId: string, status: AdminUser['status']) => void; };
-  transactionsData: { transactions: AdminTransaction[]; };
-  withdrawalsData: { withdrawals: WithdrawalRequest[]; onUpdateWithdrawalStatus: (withdrawalId: string, status: WithdrawalRequest['status']) => void; };
-  referralsData: { users: AdminUser[] };
-  siteSettingsData: { 
-    chartData: ChartDataPoint[]; 
-    events: AppEvent[]; 
-    onChartDataUpdate: (data: ChartDataPoint[]) => void;
-    onAddEvent: (event: Omit<AppEvent, 'id'>) => void;
-    onUpdateEvent: (event: AppEvent) => void;
-    onDeleteEvent: (eventId: string) => void;
-  };
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = (props) => {
-  const { onExitAdmin, onLogout } = props;
+const AdminLayout: React.FC<AdminLayoutProps> = ({ onExitAdmin, onLogout }) => {
   const [activePage, setActivePage] = useState<AdminPage>('dashboard');
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+
+  useEffect(() => {
+    api.setBackendStatus(isBackendConnected);
+  }, [isBackendConnected]);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon className="w-5 h-5" /> },
     { id: 'users', label: 'Users', icon: <UsersIcon className="w-5 h-5" /> },
-    { id: 'transactions', label: 'Transactions', icon: <TransactionsIcon className="w-5 h-5" /> },
+    { id: 'wallets', label: 'Wallets', icon: <WalletIcon className="w-5 h-5" /> },
+    { id: 'deposits', label: 'Deposits', icon: <TransactionsIcon className="w-5 h-5" /> },
     { id: 'withdrawals', label: 'Withdrawals', icon: <WithdrawalIcon className="w-5 h-5" /> },
-    { id: 'referrals', label: 'Referrals', icon: <ReferralIcon className="w-5 h-5" /> },
-    { id: 'settings', label: 'Site Settings', icon: <SettingsIcon className="w-5 h-5" /> },
+    { id: 'team', label: 'Team', icon: <ReferralIcon className="w-5 h-5" /> },
+    { id: 'chart', label: 'Chart', icon: <ChartBarIcon className="w-5 h-5" /> },
+    { id: 'events', label: 'Events', icon: <CalendarIcon className="w-5 h-5" /> },
+    { id: 'analysis', label: 'Analysis', icon: <SparklesIcon className="w-5 h-5" /> },
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-5 h-5" /> },
   ];
+  
+  const pageKey = `${activePage}-${isBackendConnected}`;
 
   const renderContent = () => {
     switch (activePage) {
       case 'dashboard':
-        return <AdminDashboard {...props.dashboardData} />;
+        return <AdminDashboard key={pageKey} />;
       case 'users':
-        return <AdminUserManagement {...props.usersData} />;
-      case 'transactions':
-        return <AdminTransactions {...props.transactionsData} />;
+        return <AdminUserManagement key={pageKey} />;
+       case 'wallets':
+        return <PlaceholderPage key={pageKey} title="User Wallet Management" />;
+      case 'deposits':
+        return <AdminTransactions key={pageKey} />;
       case 'withdrawals':
-        return <AdminWithdrawals {...props.withdrawalsData} />;
-      case 'referrals':
-        return <AdminReferrals {...props.referralsData} />;
+        return <AdminWithdrawals key={pageKey} />;
+      case 'team':
+        return <AdminReferrals key={pageKey} />;
+       case 'chart':
+        return <AdminChartManagement key={pageKey} />;
+      case 'events':
+        return <AdminEventManagement key={pageKey} />;
+       case 'analysis':
+        return <AdminAnalysis key={pageKey} />;
        case 'settings':
-        return <AdminSiteSettings {...props.siteSettingsData} />;
+        return <AdminSiteSettings key={pageKey} />;
       default:
-        return <AdminDashboard {...props.dashboardData} />;
+        return <AdminDashboard key={pageKey} />;
     }
   };
 
@@ -77,7 +104,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = (props) => {
               Admin Panel
             </div>
         </div>
-        <nav className="flex-grow px-4 py-6 space-y-2">
+        <nav className="flex-grow px-4 py-6 space-y-1">
           {navItems.map(item => (
             <button
               key={item.id}
@@ -108,10 +135,25 @@ const AdminLayout: React.FC<AdminLayoutProps> = (props) => {
                 <LogoutIcon className="w-5 h-5" />
                 <span className="ml-3">Logout</span>
             </button>
+             <div className="pt-2 text-center text-xs text-slate-400">
+                &copy; {new Date().getFullYear()} Crypto Mining Inc.
+             </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">
-        <div className="p-8">
+      <main className="flex-1 flex flex-col overflow-auto">
+         <header className="h-16 flex-shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+            <h1 className="text-2xl font-bold text-slate-800 capitalize">{activePage}</h1>
+            <button 
+                onClick={() => setIsBackendConnected(!isBackendConnected)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isBackendConnected ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                }`}
+                >
+                {isBackendConnected ? <WifiIcon className="w-5 h-5" /> : <WifiOffIcon className="w-5 h-5" />}
+                <span>Backend: {isBackendConnected ? 'Connected' : 'Disconnected'}</span>
+            </button>
+         </header>
+        <div className="p-8 overflow-y-auto">
             {renderContent()}
         </div>
       </main>
