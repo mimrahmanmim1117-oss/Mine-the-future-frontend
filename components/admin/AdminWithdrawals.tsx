@@ -10,6 +10,8 @@ const getStatusColor = (status: WithdrawalRequest['status']) => {
         case 'Approved': return 'bg-green-100 text-green-700';
         case 'Rejected': return 'bg-red-100 text-red-700';
         case 'Pending': return 'bg-yellow-100 text-yellow-700';
+        case 'Pending Assistance': return 'bg-blue-100 text-blue-700';
+        case 'Awaiting User Confirmation': return 'bg-purple-100 text-purple-700';
     }
 };
 
@@ -23,7 +25,7 @@ const AdminWithdrawals: React.FC = () => {
             setIsLoading(true);
             setError(null);
             const result = await api.fetchWithdrawals();
-            setWithdrawals(result);
+            setWithdrawals(result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
         } catch (err) {
             setError(err as Error);
         } finally {
@@ -65,7 +67,10 @@ const AdminWithdrawals: React.FC = () => {
                         <tbody>
                             {withdrawals.map(w => (
                                 <tr key={w.id} className="border-b border-slate-200 last:border-b-0 hover:bg-slate-50 text-sm">
-                                    <td className="p-4 font-mono text-slate-700 truncate" title={w.userWallet}>{`${w.userWallet.substring(0, 10)}...${w.userWallet.substring(w.userWallet.length - 4)}`}</td>
+                                    <td className="p-4">
+                                      <p className="font-mono text-slate-700 truncate" title={w.userWallet}>{`${w.userWallet.substring(0, 10)}...${w.userWallet.substring(w.userWallet.length - 4)}`}</p>
+                                      {w.userMessage && <p className="text-xs text-slate-500 italic mt-1">"{w.userMessage}"</p>}
+                                    </td>
                                     <td className="p-4 text-slate-700">{new Date(w.timestamp).toLocaleString()}</td>
                                     <td className="p-4 font-mono text-right flex items-center justify-end text-slate-700">
                                         <EthereumLogo className="w-4 h-4 mr-2" />
@@ -85,7 +90,20 @@ const AdminWithdrawals: React.FC = () => {
                                                 </button>
                                             </>
                                         )}
-                                        {w.status !== 'Pending' && (
+                                        {w.status === 'Pending Assistance' && (
+                                            <>
+                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Awaiting User Confirmation')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                    Prepare
+                                                </button>
+                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Rejected')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                    Reject
+                                                </button>
+                                            </>
+                                        )}
+                                        {w.status === 'Awaiting User Confirmation' && (
+                                            <span className="text-xs text-purple-700 italic">Waiting for User</span>
+                                        )}
+                                        {(w.status === 'Approved' || w.status === 'Rejected') && (
                                             <span className="text-xs text-slate-500 italic">Processed</span>
                                         )}
                                     </td>

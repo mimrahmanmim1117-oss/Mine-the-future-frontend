@@ -10,7 +10,7 @@ import { ChartBarIcon } from '../icons/ChartBarIcon';
 import { CalendarIcon } from '../icons/CalendarIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
 
-import type { AdminPage } from '../../types';
+import type { AdminPage, ChatSession } from '../../types';
 import * as api from './api';
 
 import AdminDashboard from './AdminDashboard';
@@ -22,12 +22,16 @@ import AdminSiteSettings from './AdminSiteSettings';
 import AdminChartManagement from './AdminChartManagement';
 import AdminEventManagement from './AdminEventManagement';
 import AdminAnalysis from './AdminAnalysis';
+import AdminLiveChat from './AdminLiveChat';
+import AdminWallets from './AdminWallets'; // New Import
 
 import { WalletIcon } from '../icons/WalletIcon';
 import { TransactionsIcon } from '../icons/TransactionsIcon';
 import { WithdrawalIcon } from '../icons/WithdrawalIcon';
 import { ReferralIcon } from '../icons/ReferralIcon';
 import { SettingsIcon } from '../icons/SettingsIcon';
+import { ChatBubbleLeftRightIcon } from '../icons/ChatBubbleLeftRightIcon';
+
 
 // Placeholder component for new pages
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -43,9 +47,18 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
 interface AdminLayoutProps {
   onExitAdmin: () => void;
   onLogout: () => void;
+  chatSessions: Record<string, ChatSession>;
+  onAdminSendMessage: (sessionId: string, text: string) => void;
+  onAdminReadMessage: (sessionId: string) => void;
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ onExitAdmin, onLogout }) => {
+const AdminLayout: React.FC<AdminLayoutProps> = ({ 
+  onExitAdmin, 
+  onLogout, 
+  chatSessions, 
+  onAdminSendMessage,
+  onAdminReadMessage
+}) => {
   const [activePage, setActivePage] = useState<AdminPage>('dashboard');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
@@ -53,9 +66,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onExitAdmin, onLogout }) => {
     api.setBackendStatus(isBackendConnected);
   }, [isBackendConnected]);
 
+  // Fix: Add explicit type `ChatSession` to `s` to resolve type inference issue.
+  const unreadChatCount = Object.values(chatSessions).filter((s: ChatSession) => s.unreadAdmin).length;
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon className="w-5 h-5" /> },
     { id: 'users', label: 'Users', icon: <UsersIcon className="w-5 h-5" /> },
+    { id: 'livechat', label: 'Live Chat', icon: <ChatBubbleLeftRightIcon className="w-5 h-5" />, badge: unreadChatCount },
     { id: 'wallets', label: 'Wallets', icon: <WalletIcon className="w-5 h-5" /> },
     { id: 'deposits', label: 'Deposits', icon: <TransactionsIcon className="w-5 h-5" /> },
     { id: 'withdrawals', label: 'Withdrawals', icon: <WithdrawalIcon className="w-5 h-5" /> },
@@ -74,8 +91,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onExitAdmin, onLogout }) => {
         return <AdminDashboard key={pageKey} />;
       case 'users':
         return <AdminUserManagement key={pageKey} />;
+       case 'livechat':
+        return <AdminLiveChat 
+                  key={pageKey} 
+                  sessions={chatSessions} 
+                  onSendMessage={onAdminSendMessage}
+                  onReadMessage={onAdminReadMessage}
+                />;
        case 'wallets':
-        return <PlaceholderPage key={pageKey} title="User Wallet Management" />;
+        return <AdminWallets key={pageKey} />;
       case 'deposits':
         return <AdminTransactions key={pageKey} />;
       case 'withdrawals':
@@ -116,7 +140,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onExitAdmin, onLogout }) => {
               }`}
             >
               {item.icon}
-              <span className="ml-3">{item.label}</span>
+              <span className="ml-3 flex-grow text-left">{item.label}</span>
+              {item.badge && item.badge > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{item.badge}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -140,7 +167,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onExitAdmin, onLogout }) => {
              </div>
         </div>
       </aside>
-      <main className="flex-1 flex flex-col overflow-auto">
+      <main className="flex-1 flex flex-col overflow-auto h-screen">
          <header className="h-16 flex-shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-8">
             <h1 className="text-2xl font-bold text-slate-800 capitalize">{activePage}</h1>
             <button 
@@ -153,7 +180,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onExitAdmin, onLogout }) => {
                 <span>Backend: {isBackendConnected ? 'Connected' : 'Disconnected'}</span>
             </button>
          </header>
-        <div className="p-8 overflow-y-auto">
+        <div className="p-8 overflow-y-auto flex-grow">
             {renderContent()}
         </div>
       </main>

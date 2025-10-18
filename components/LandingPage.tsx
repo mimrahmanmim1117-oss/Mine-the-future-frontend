@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import type { ChartDataPoint, AppEvent } from '../types';
+import type { SiteSettings } from '../types';
 import { EthereumLogo } from './icons/EthereumLogo';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { ComputerIcon } from './icons/ComputerIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
-import * as api from './admin/api'; // Use the shared API
+import * as api from './admin/api'; 
+import GearDescriptionModal from './GearDescriptionModal'; 
 
 // Partner Icons
 import { MetaMaskIcon } from './icons/MetaMaskIcon';
@@ -127,31 +127,27 @@ const certificates = [
 
 
 const FeatureCard: React.FC<{ icon: React.ReactNode, title: string, description: string }> = ({ icon, title, description }) => (
-    <div className="bg-white p-6 rounded-lg border border-slate-200 hover:border-brand-blue/30 text-center transform hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-xl">
+    <div className="bg-white/30 backdrop-blur-lg p-6 rounded-lg border border-white/40 hover:border-white/60 text-center transform hover:-translate-y-2 transition-all duration-300 shadow-lg hover:shadow-brand-sky/20">
         <div className="flex justify-center mb-4">{icon}</div>
-        <h3 className="text-xl font-bold mb-2 text-slate-900">{title}</h3>
-        <p className="text-slate-600">{description}</p>
+        <h3 className="text-xl font-bold mb-2 text-text-primary">{title}</h3>
+        <p className="text-text-secondary">{description}</p>
     </div>
 );
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [events, setEvents] = useState<AppEvent[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
         const settings = await api.publicFetchSiteSettings();
-        setChartData(settings.chartData);
-        setEvents(settings.events);
+        setSiteSettings(settings);
       } catch (error) {
         console.error("Failed to fetch site settings:", error);
-        // Set to default empty state on error
-        setChartData([]);
-        setEvents([]);
       } finally {
         setIsLoading(false);
       }
@@ -164,184 +160,232 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartMiningClick }) => {
   };
 
   return (
-    <div className="text-slate-800">
-      {/* Hero Section */}
-      <section className="text-center py-20 md:py-32 hero-pattern">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight text-slate-900">
-            Mine Ethereum, Power the Future
-          </h1>
-          <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-8">
-            Join our decentralized mining platform to convert your assets and start earning ETH rewards today. Secure, transparent, and powerful.
-          </p>
-          <button
-            onClick={onStartMiningClick}
-            className="bg-gradient-to-r from-brand-blue to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-blue-500/30 text-lg"
-          >
-            Start Mining Now
-          </button>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-20 bg-transparent">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={<EthereumLogo className="w-12 h-12 text-brand-blue" />}
-              title="Instant Conversion"
-              description="Seamlessly convert your stablecoins (USDT/USDC) into mining power without complex steps."
-            />
-            <FeatureCard 
-              icon={<CheckCircleIcon className="w-12 h-12 text-green-500" />}
-              title="Secure & Transparent"
-              description="Your assets are secure. All transactions are verifiable on the blockchain for complete transparency."
-            />
-             <FeatureCard 
-              icon={<ComputerIcon className="w-12 h-12 text-slate-500" />}
-              title="Multi-Platform"
-              description="Access our platform from your desktop or mobile device, and manage your mining operations anywhere."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Chart and Events Section */}
-      <section className="py-20 bg-white border-y border-slate-200">
-        <div className="container mx-auto px-4 grid lg:grid-cols-3 gap-12 items-start">
-          <div className="lg:col-span-2">
-            <h2 className="text-3xl font-bold mb-6 text-slate-900">Live Mining Pool Performance (ETH)</h2>
-            <div className="w-full h-80 bg-slate-50 p-4 rounded-lg border border-slate-200">
-              {isLoading ? <div className="flex items-center justify-center h-full text-slate-500">Loading Chart...</div> :
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="name" stroke="#64748b" />
-                      <YAxis stroke="#64748b" domain={['dataMin - 5', 'dataMax + 5']} />
-                      <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#1e293b' }} />
-                      <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 8, stroke: '#2563eb', fill: '#fff' }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              }
-            </div>
-          </div>
-          <div>
-            <h2 className="text-3xl font-bold mb-6 text-slate-900">Latest News & Events</h2>
-            <div className="space-y-4">
-              {isLoading ? <div className="text-slate-500">Loading Events...</div> : 
-              events.length > 0 ? events.slice(0, 3).map(event => (
-                <div 
-                  key={event.id}
-                  className="w-full text-left bg-slate-50 p-4 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
-                >
-                  <p className="text-sm text-slate-500">{new Date(event.date).toLocaleDateString()}</p>
-                  <h4 className="font-semibold text-slate-800">{event.title}</h4>
-                  <p className="text-sm text-slate-600">{event.description}</p>
-                </div>
-              )) : <p className="text-slate-500">No events scheduled.</p>}
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Ongoing Events Section */}
-      <section className="py-20 bg-transparent">
+    <>
+      <div className="text-text-primary">
+        {/* Hero Section */}
+        <section className="text-center py-20 md:py-32">
           <div className="container mx-auto px-4">
-              <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Ongoing & Upcoming Events</h2>
-               {isLoading ? <div className="text-center text-slate-500">Loading Events...</div> :
-                events.length > 0 ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {events.map(event => (
-                        <div key={event.id} className="bg-white p-6 rounded-lg border border-slate-200 hover:border-brand-blue/30 flex flex-col shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
-                            <span className={`text-xs font-bold uppercase py-1 px-2 rounded-full self-start mb-3 ${
-                                event.type === 'milestone' ? 'bg-purple-100 text-purple-700' :
-                                event.type === 'update' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
-                            }`}>{event.type}</span>
-                            <h3 className="text-xl font-bold mb-2 text-slate-900">{event.title}</h3>
-                            <p className="text-sm text-slate-600 mb-4 flex-grow">{event.description}</p>
-                            <p className="text-xs text-slate-500 mt-auto">{new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                        </div>
+            <h1 className="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight text-gray-900">
+              Mine Ethereum, Power the Future
+            </h1>
+            <p className="text-lg md:text-xl text-text-secondary max-w-3xl mx-auto mb-8">
+              Join our decentralized mining platform to convert your assets and start earning ETH rewards today. Secure, transparent, and powerful.
+            </p>
+            <button
+              onClick={onStartMiningClick}
+              className="bg-gradient-to-r from-brand-accent to-violet-500 hover:from-violet-500 hover:to-violet-600 text-white font-bold py-4 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-brand-accent/30 text-lg"
+            >
+              Start Mining Now
+            </button>
+          </div>
+        </section>
+
+        {/* Gear Income Ratio Section */}
+        {siteSettings && siteSettings.gearRatios.length > 0 && (
+          <section className="py-20 bg-white/20 backdrop-blur-lg border-y border-white/30">
+            <div className="container mx-auto px-4 max-w-4xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-gray-900">Gear income ratio</h2>
+                <button onClick={() => setShowDescriptionModal(true)} className="text-brand-sky font-semibold hover:underline transition-colors">
+                  View description &gt;
+                </button>
+              </div>
+              <div className="bg-white/40 rounded-lg border border-white/40 overflow-hidden shadow-lg">
+                <table className="w-full text-center">
+                  <thead className="bg-black/5">
+                    <tr className="border-b border-black/10">
+                      <th className="p-3 font-semibold text-text-primary">Gear</th>
+                      <th className="p-3 font-semibold text-text-primary">Quantity (USD)</th>
+                      <th className="p-3 font-semibold text-text-primary">Rate of return</th>
+                      <th className="p-3 font-semibold text-text-primary">Revenue unit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {siteSettings.gearRatios.map((item, index) => (
+                      <tr key={item.gear} className="border-b border-black/10 last:border-b-0 text-sm">
+                        <td className="p-3 font-medium text-text-primary">{item.gear}</td>
+                        <td className="p-3 font-mono text-text-secondary">{item.quantity}</td>
+                        <td className="p-3 font-mono text-text-secondary">{item.rateOfReturn}</td>
+                        {index === 0 && (
+                          <td className="p-3 font-semibold text-text-primary" rowSpan={siteSettings.gearRatios.length}>
+                            {item.revenueUnit}
+                          </td>
+                        )}
+                      </tr>
                     ))}
-                </div>
-                ) : <p className="text-center text-slate-500">There are no upcoming events at this time.</p>
-              }
-          </div>
-      </section>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
 
-      {/* FAQ Section */}
-      <section className="py-20 bg-white border-y border-slate-200">
-          <div className="container mx-auto px-4 max-w-4xl">
-              <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Frequently Asked Questions</h2>
+        {/* Features Section */}
+        <section className="py-20 bg-transparent">
+          <div className="container mx-auto px-4">
+            <div className="grid md:grid-cols-3 gap-8">
+              <FeatureCard 
+                icon={<EthereumLogo className="w-12 h-12 text-brand-sky" />}
+                title="Instant Conversion"
+                description="Seamlessly convert your stablecoins (USDT/USDC) into mining power without complex steps."
+              />
+              <FeatureCard 
+                icon={<CheckCircleIcon className="w-12 h-12 text-green-500" />}
+                title="Secure & Transparent"
+                description="Your assets are secure. All transactions are verifiable on the blockchain for complete transparency."
+              />
+              <FeatureCard 
+                icon={<ComputerIcon className="w-12 h-12 text-text-secondary" />}
+                title="Multi-Platform"
+                description="Access our platform from your desktop or mobile device, and manage your mining operations anywhere."
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Chart and Events Section */}
+        <section className="py-20 bg-white/20 backdrop-blur-lg border-y border-white/30">
+          <div className="container mx-auto px-4 grid lg:grid-cols-3 gap-12 items-start">
+            <div className="lg:col-span-2">
+              <h2 className="text-3xl font-bold mb-6 text-gray-900">Live Mining Pool Performance (ETH)</h2>
+              <div className="w-full h-80 bg-white/40 p-4 rounded-lg border border-white/40">
+                {isLoading || !siteSettings ? <div className="flex items-center justify-center h-full text-text-secondary">Loading Chart...</div> :
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={siteSettings.chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                        <XAxis dataKey="name" stroke="#4b5563" />
+                        <YAxis stroke="#4b5563" domain={['dataMin - 5', 'dataMax + 5']} />
+                        <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.1)', color: '#1f2937' }} />
+                        <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 8, stroke: '#3b82f6', fill: '#fff' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                }
+              </div>
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold mb-6 text-gray-900">Latest News & Events</h2>
               <div className="space-y-4">
-                  {faqs.map((faq, index) => (
-                      <div key={index} className="bg-slate-50 rounded-lg border border-slate-200 transition-all duration-300 hover:border-slate-300">
-                          <button
-                              onClick={() => handleFaqToggle(index)}
-                              className="w-full flex justify-between items-center text-left p-6"
-                          >
-                              <h3 className="text-lg font-semibold text-slate-800">{faq.question}</h3>
-                              <ChevronDownIcon className={`w-6 h-6 text-slate-500 transition-transform transform ${openFaq === index ? 'rotate-180' : ''}`} />
-                          </button>
-                          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openFaq === index ? 'max-h-96' : 'max-h-0'}`}>
-                              <p className="p-6 pt-0 text-slate-600">{faq.answer}</p>
-                          </div>
-                      </div>
-                  ))}
+                {isLoading || !siteSettings ? <div className="text-text-secondary">Loading Events...</div> : 
+                siteSettings.events.length > 0 ? siteSettings.events.slice(0, 3).map(event => (
+                  <div 
+                    key={event.id}
+                    className="w-full text-left bg-white/40 p-4 rounded-lg border border-white/40 hover:border-white/60 transition-colors"
+                  >
+                    <p className="text-sm text-text-secondary">{new Date(event.date).toLocaleDateString()}</p>
+                    <h4 className="font-semibold text-text-primary">{event.title}</h4>
+                    <p className="text-sm text-text-secondary">{event.description}</p>
+                  </div>
+                )) : <p className="text-text-secondary">No events scheduled.</p>}
               </div>
+            </div>
           </div>
-      </section>
-
-      {/* Investors Section */}
-      <section className="py-20 bg-transparent">
-          <div className="container mx-auto px-4">
-              <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Our Investors & Backers</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-                  {investors.map((investor) => (
-                       <div key={investor.name} className="bg-white p-8 rounded-lg border border-slate-200 hover:border-brand-blue/30 text-center shadow-sm hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
-                           <img src={investor.image} alt={investor.name} className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-slate-100" />
-                           <h3 className="text-xl font-bold text-slate-900">{investor.name}</h3>
-                           <p className="text-brand-blue font-semibold mb-3">{investor.title}</p>
-                           <p className="text-slate-600 text-sm">{investor.bio}</p>
-                       </div>
-                  ))}
-              </div>
-          </div>
-      </section>
-      
-      {/* Trusted Partners Section */}
-      <section className="py-20 bg-white border-t border-slate-200">
-          <div className="container mx-auto px-4">
-              <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Trusted Wallets & Exchange Partners</h2>
-              <div className="relative overflow-hidden group">
-                  <div className="flex whitespace-nowrap animate-scroll group-hover:pause">
-                      {[...partners, ...partners].map((partner, index) => (
-                          <div key={index} className="inline-flex items-center justify-center mx-8 my-4 text-slate-700 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
-                              {partner.icon}
-                              <span className="ml-3 font-semibold text-lg">{partner.name}</span>
+        </section>
+        
+        {/* Ongoing Events Section */}
+        <section className="py-20 bg-transparent">
+            <div className="container mx-auto px-4">
+                <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Ongoing & Upcoming Events</h2>
+                {isLoading || !siteSettings ? <div className="text-center text-text-secondary">Loading Events...</div> :
+                  siteSettings.events.length > 0 ? (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {siteSettings.events.map(event => (
+                          <div key={event.id} className="bg-white/30 backdrop-blur-lg p-6 rounded-lg border border-white/40 flex flex-col shadow-lg hover:shadow-brand-sky/20 transform hover:-translate-y-2 transition-all duration-300">
+                              <span className={`text-xs font-bold uppercase py-1 px-2 rounded-full self-start mb-3 ${
+                                  event.type === 'milestone' ? 'bg-purple-500/10 text-purple-700' :
+                                  event.type === 'update' ? 'bg-blue-500/10 text-blue-700' : 'bg-yellow-500/10 text-yellow-700'
+                              }`}>{event.type}</span>
+                              <h3 className="text-xl font-bold mb-2 text-text-primary">{event.title}</h3>
+                              <p className="text-sm text-text-secondary mb-4 flex-grow">{event.description}</p>
+                              <p className="text-xs text-gray-500 mt-auto">{new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                           </div>
                       ))}
                   </div>
-              </div>
-          </div>
-      </section>
+                  ) : <p className="text-center text-text-secondary">There are no upcoming events at this time.</p>
+                }
+            </div>
+        </section>
 
-      {/* Security & Compliance Section */}
-      <section className="py-20 bg-transparent">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-slate-900">Our Security & Compliance</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
-            {certificates.map((cert) => (
-              <div key={cert.title} className="bg-white p-6 rounded-lg border border-slate-200 hover:border-brand-blue/30 text-center transform hover:-translate-y-2 transition-all duration-300 shadow-sm hover:shadow-xl">
-                <div className="flex justify-center mb-4">{cert.icon}</div>
-                <h3 className="text-xl font-bold mb-2 text-slate-900">{cert.title}</h3>
-                <p className="text-slate-600 text-sm">{cert.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        {/* FAQ Section */}
+        <section className="py-20 bg-white/20 backdrop-blur-lg border-y border-white/30">
+            <div className="container mx-auto px-4 max-w-4xl">
+                <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Frequently Asked Questions</h2>
+                <div className="space-y-4">
+                    {faqs.map((faq, index) => (
+                        <div key={index} className="bg-white/40 backdrop-blur-lg rounded-lg border border-white/40 transition-all duration-300 hover:border-white/60">
+                            <button
+                                onClick={() => handleFaqToggle(index)}
+                                className="w-full flex justify-between items-center text-left p-6"
+                            >
+                                <h3 className="text-lg font-semibold text-text-primary">{faq.question}</h3>
+                                <ChevronDownIcon className={`w-6 h-6 text-text-secondary transition-transform transform ${openFaq === index ? 'rotate-180' : ''}`} />
+                            </button>
+                            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openFaq === index ? 'max-h-96' : 'max-h-0'}`}>
+                                <p className="p-6 pt-0 text-text-secondary">{faq.answer}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
 
-    </div>
+        {/* Investors Section */}
+        <section className="py-20 bg-transparent">
+            <div className="container mx-auto px-4">
+                <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Our Investors & Backers</h2>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+                    {investors.map((investor) => (
+                        <div key={investor.name} className="bg-white/30 backdrop-blur-lg p-8 rounded-lg border border-white/40 text-center shadow-lg hover:shadow-brand-sky/20 transform hover:-translate-y-2 transition-all duration-300">
+                            <img src={investor.image} alt={investor.name} className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-white/50" />
+                            <h3 className="text-xl font-bold text-text-primary">{investor.name}</h3>
+                            <p className="text-brand-sky font-semibold mb-3">{investor.title}</p>
+                            <p className="text-text-secondary text-sm">{investor.bio}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+        
+        {/* Trusted Partners Section */}
+        <section className="py-20 bg-white/10 backdrop-blur-sm border-t border-white/30">
+            <div className="container mx-auto px-4">
+                <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Trusted Wallets & Exchange Partners</h2>
+                <div className="relative overflow-hidden group">
+                    <div className="flex whitespace-nowrap animate-scroll group-hover:pause">
+                        {[...partners, ...partners].map((partner, index) => (
+                            <div key={index} className="inline-flex items-center justify-center mx-8 my-4 text-text-secondary grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                                {partner.icon}
+                                <span className="ml-3 font-semibold text-lg">{partner.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* Security & Compliance Section */}
+        <section className="py-20 bg-transparent">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Our Security & Compliance</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+              {certificates.map((cert) => (
+                <div key={cert.title} className="bg-white/30 backdrop-blur-lg p-6 rounded-lg border border-white/40 text-center transform hover:-translate-y-2 transition-all duration-300 shadow-lg hover:shadow-brand-sky/20">
+                  <div className="flex justify-center mb-4">{cert.icon}</div>
+                  <h3 className="text-xl font-bold mb-2 text-text-primary">{cert.title}</h3>
+                  <p className="text-text-secondary text-sm">{cert.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+      </div>
+      {showDescriptionModal && siteSettings && (
+        <GearDescriptionModal
+          onClose={() => setShowDescriptionModal(false)}
+          description={siteSettings.gearRatioDescription}
+        />
+      )}
+    </>
   );
 };
 

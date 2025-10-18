@@ -3,8 +3,16 @@ import type { AdminUser } from '../../types';
 import * as api from './api';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorDisplay from './ErrorDisplay';
+import { ArrowDownIcon } from '../icons/ArrowDownIcon';
+import { WalletIcon } from '../icons/WalletIcon';
+import { CheckBadgeIcon } from '../icons/CheckBadgeIcon';
+import { ClockIcon } from '../icons/ClockIcon';
+import { EthereumLogo } from '../icons/EthereumLogo';
+import { TransactionsIcon } from '../icons/TransactionsIcon';
+import { PickaxeIcon } from '../icons/PickaxeIcon';
+import { GlobeIcon } from '../icons/GlobeIcon';
 
-const getStatusColor = (status: AdminUser['status']) => {
+const getStatusPillClasses = (status: AdminUser['status']) => {
     switch (status) {
         case 'Active': return 'bg-green-100 text-green-700';
         case 'Suspended': return 'bg-red-100 text-red-700';
@@ -12,10 +20,38 @@ const getStatusColor = (status: AdminUser['status']) => {
     }
 };
 
+const getStatusBorderClasses = (status: AdminUser['status']) => {
+    switch (status) {
+        case 'Active': return 'border-green-400';
+        case 'Suspended': return 'border-red-400';
+        case 'Pending': return 'border-yellow-400';
+    }
+}
+
+const DetailCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; }> = ({ title, icon, children }) => (
+    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center">
+            {icon}
+            <span className="ml-2">{title}</span>
+        </h3>
+        <div className="space-y-2 text-sm">
+            {children}
+        </div>
+    </div>
+);
+
+const DetailRow: React.FC<{ label: string; children: React.ReactNode; }> = ({ label, children }) => (
+    <div className="flex justify-between items-center">
+        <span className="text-slate-500">{label}</span>
+        <span className="text-slate-800 font-medium">{children}</span>
+    </div>
+);
+
 const AdminUserManagement: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
   const fetchUsersData = async () => {
     try {
@@ -35,74 +71,105 @@ const AdminUserManagement: React.FC = () => {
   }, []);
   
   const handleUpdateUserStatus = async (userId: string, status: AdminUser['status']) => {
-      // Optimistically update UI
       setUsers(users.map(u => u.id === userId ? { ...u, status } : u));
       try {
         await api.updateUserStatus(userId, status);
-        // Optionally refetch to confirm, but optimistic is faster UX
-        // await fetchUsersData(); 
       } catch (err) {
         setError(err as Error);
-        // Revert UI on failure
         fetchUsersData();
       }
+  };
+
+  const handleToggleExpand = (userId: string) => {
+    setExpandedUserId(expandedUserId === userId ? null : userId);
   };
   
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorDisplay error={error} />;
 
   return (
-    <div>
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50">
-              <tr className="border-b border-slate-200">
-                <th className="p-4 uppercase text-sm font-medium text-slate-500">Wallet Address</th>
-                <th className="p-4 uppercase text-sm font-medium text-slate-500">IP Address</th>
-                <th className="p-4 uppercase text-sm font-medium text-slate-500">Location</th>
-                <th className="p-4 uppercase text-sm font-medium text-slate-500">Referred By</th>
-                <th className="p-4 uppercase text-sm font-medium text-slate-500">Join Date</th>
-                <th className="p-4 uppercase text-sm font-medium text-slate-500">Status</th>
-                <th className="p-4 uppercase text-sm font-medium text-slate-500 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user.id} className="border-b border-slate-200 last:border-b-0 hover:bg-slate-50 text-sm">
-                  <td className="p-4 font-mono text-slate-700 truncate" title={user.walletAddress}>{`${user.walletAddress.substring(0, 6)}...${user.walletAddress.substring(user.walletAddress.length - 4)}`}</td>
-                  <td className="p-4 font-mono text-slate-700">{user.ipAddress}</td>
-                  <td className="p-4 text-slate-700">{user.location}</td>
-                  <td className="p-4 font-mono text-slate-700 truncate" title={user.invitationParent || undefined}>
-                    {user.invitationParent ? `${user.invitationParent.substring(0, 6)}...${user.invitationParent.substring(user.invitationParent.length - 4)}` : 'N/A'}
-                  </td>
-                  <td className="p-4 text-slate-700">{user.joinDate}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>{user.status}</span>
-                  </td>
-                  <td className="p-4 text-center">
-                    {user.status === 'Pending' && (
-                      <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
-                        Approve
-                      </button>
+    <div className="space-y-3">
+        {users.map(user => {
+            const isExpanded = expandedUserId === user.id;
+            return (
+                <div key={user.id} className={`bg-white rounded-lg shadow-sm border ${isExpanded ? `border-brand-blue ${getStatusBorderClasses(user.status)}` : 'border-slate-200'} transition-all`}>
+                    <button onClick={() => handleToggleExpand(user.id)} className="w-full p-4 text-left flex items-center justify-between">
+                       <div className="flex items-center">
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusPillClasses(user.status)}`}>{user.status}</span>
+                            <p className="ml-4 font-mono text-sm text-slate-700">{user.walletAddress}</p>
+                       </div>
+                       <div className="flex items-center text-sm">
+                           <p className="text-slate-600 mr-4">{user.location}</p>
+                           <p className="text-slate-600 mr-4 font-mono">{user.ipAddress}</p>
+                           <ArrowDownIcon className={`w-5 h-5 text-slate-500 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                       </div>
+                    </button>
+
+                    {isExpanded && (
+                        <div className="p-4 border-t border-slate-200 bg-slate-50/50">
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                               <DetailCard title="Wallet Details" icon={<WalletIcon className="w-4 h-4 text-slate-500" />}>
+                                    <DetailRow label="Wallet Name">{user.walletName}</DetailRow>
+                                    <DetailRow label="USDT Allowance">
+                                        <span className={user.usdtAllowance > 0 ? 'text-green-600' : 'text-slate-500'}>
+                                            {user.usdtAllowance > 100000000 ? 'Unlimited' : user.usdtAllowance.toLocaleString()}
+                                        </span>
+                                    </DetailRow>
+                                    <DetailRow label="USDC Allowance">
+                                        <span className={user.usdcAllowance > 0 ? 'text-green-600' : 'text-slate-500'}>
+                                           {user.usdcAllowance > 100000000 ? 'Unlimited' : user.usdcAllowance.toLocaleString()}
+                                        </span>
+                                    </DetailRow>
+                               </DetailCard>
+
+                               <DetailCard title="Asset Overview" icon={<EthereumLogo className="w-4 h-4 text-slate-500" />}>
+                                    <DetailRow label="Platform Balance">{user.ethBalance.toFixed(4)} ETH</DetailRow>
+                                    <DetailRow label="Wallet USDT">{user.walletBalance.usdt.toLocaleString()}</DetailRow>
+                                    <DetailRow label="Wallet USDC">{user.walletBalance.usdc.toLocaleString()}</DetailRow>
+                               </DetailCard>
+                               
+                               <DetailCard title="Activity & Referrals" icon={<ClockIcon className="w-4 h-4 text-slate-500" />}>
+                                    <DetailRow label="Joined">{new Date(user.joinDate).toLocaleDateString()}</DetailRow>
+                                    <DetailRow label="Last Active">{new Date(user.lastActive).toLocaleString()}</DetailRow>
+                                    <DetailRow label="Total Deposits">{user.totalDeposits}</DetailRow>
+                                    <DetailRow label="Referral Code">
+                                      <span className="font-mono bg-slate-200 px-1 rounded text-xs">{user.referralCode}</span>
+                                    </DetailRow>
+                                    <DetailRow label="Invited By">
+                                      {user.invitationParent ? (
+                                          <span className="font-mono text-xs" title={user.invitationParent}>
+                                              {`${user.invitationParent.substring(0, 8)}...`}
+                                          </span>
+                                      ) : (
+                                          'N/A'
+                                      )}
+                                    </DetailRow>
+                               </DetailCard>
+
+                               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col justify-center space-y-2">
+                                    <h3 className="text-sm font-semibold text-slate-800 text-center mb-2">Actions</h3>
+                                    {user.status === 'Pending' && (
+                                    <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
+                                        Approve User
+                                    </button>
+                                    )}
+                                    {user.status === 'Active' && (
+                                    <button onClick={() => handleUpdateUserStatus(user.id, 'Suspended')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
+                                        Suspend User
+                                    </button>
+                                    )}
+                                    {user.status === 'Suspended' && (
+                                    <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
+                                        Re-activate User
+                                    </button>
+                                    )}
+                               </div>
+                            </div>
+                        </div>
                     )}
-                    {user.status === 'Active' && (
-                      <button onClick={() => handleUpdateUserStatus(user.id, 'Suspended')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
-                        Suspend
-                      </button>
-                    )}
-                    {user.status === 'Suspended' && (
-                      <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
-                        Re-activate
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </div>
+            )
+        })}
     </div>
   );
 };

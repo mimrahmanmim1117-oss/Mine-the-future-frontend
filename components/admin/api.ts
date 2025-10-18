@@ -1,5 +1,5 @@
-import { mockUsers, mockTransactions, mockWithdrawals, mockChartData, mockEvents } from './mockData';
-import type { AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint } from '../../types';
+import { mockUsers, mockTransactions, mockWithdrawals, mockSiteSettings } from './mockData';
+import type { AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint, SiteSettings } from '../../types';
 
 // --- DATABASE SIMULATION ---
 // In a real app, this would be a database. We'll mutate this data in memory.
@@ -7,8 +7,7 @@ let db = {
   users: JSON.parse(JSON.stringify(mockUsers)),
   transactions: JSON.parse(JSON.stringify(mockTransactions)),
   withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
-  chartData: JSON.parse(JSON.stringify(mockChartData)),
-  events: JSON.parse(JSON.stringify(mockEvents)),
+  settings: JSON.parse(JSON.stringify(mockSiteSettings)),
 };
 
 // --- API SIMULATION ---
@@ -21,11 +20,10 @@ export const setBackendStatus = (isConnected: boolean) => {
   if (isConnected) {
     // Reset DB on connect to have a clean state for the session
     db = {
-        users: JSON.parse(JSON.stringify(mockUsers)),
-        transactions: JSON.parse(JSON.stringify(mockTransactions)),
-        withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
-        chartData: JSON.parse(JSON.stringify(mockChartData)),
-        events: JSON.parse(JSON.stringify(mockEvents)),
+      users: JSON.parse(JSON.stringify(mockUsers)),
+      transactions: JSON.parse(JSON.stringify(mockTransactions)),
+      withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
+      settings: JSON.parse(JSON.stringify(mockSiteSettings)),
     };
   }
 };
@@ -45,6 +43,7 @@ const apiCall = <T>(data: T): Promise<T> => {
 // Public fetcher that doesn't check connection status or have latency, for frontend use
 const publicApiCall = <T>(data: T): Promise<T> => {
     return new Promise((resolve) => {
+        // No latency for public calls
         resolve(JSON.parse(JSON.stringify(data)));
     });
 };
@@ -71,6 +70,24 @@ export const fetchTransactions = () => apiCall(db.transactions);
 
 export const fetchWithdrawals = () => apiCall(db.withdrawals);
 
+export const fetchWithdrawalsForUser = (userWallet: string) => {
+    const userWithdrawals = db.withdrawals.filter(w => w.userWallet === userWallet);
+    return publicApiCall(userWithdrawals);
+};
+
+export const requestAssistedWithdrawal = (userWallet: string, amount: number, message: string) => {
+    const newRequest: WithdrawalRequest = {
+        id: `wd_${Date.now()}`,
+        userWallet,
+        amount,
+        userMessage: message,
+        status: 'Pending Assistance',
+        timestamp: new Date().toISOString(),
+    };
+    db.withdrawals.unshift(newRequest);
+    return publicApiCall(newRequest);
+};
+
 export const updateWithdrawalStatus = async (withdrawalId: string, status: WithdrawalRequest['status']) => {
     const withdrawal = db.withdrawals.find(w => w.id === withdrawalId);
     if(withdrawal) {
@@ -79,35 +96,35 @@ export const updateWithdrawalStatus = async (withdrawalId: string, status: Withd
     return apiCall(withdrawal);
 };
 
-export const fetchSiteSettings = () => apiCall({
-    chartData: db.chartData,
-    events: db.events,
-});
+// --- Site Settings API ---
+export const fetchSiteSettings = () => apiCall(db.settings);
 
-// For public-facing site
-export const publicFetchSiteSettings = () => publicApiCall({
-    chartData: db.chartData,
-    events: db.events,
-});
+export const publicFetchSiteSettings = () => publicApiCall(db.settings);
 
-export const fetchChartData = () => apiCall(db.chartData);
-
-export const updateChartData = async (data: ChartDataPoint[]) => {
-    db.chartData = data;
-    return apiCall(db.chartData);
+export const updateSiteSettings = async (settings: SiteSettings) => {
+    db.settings = settings;
+    return apiCall(db.settings);
 };
 
-export const fetchEvents = () => apiCall(db.events);
+// --- Legacy granular settings API for compatibility with existing components ---
+export const fetchChartData = () => apiCall(db.settings.chartData);
+
+export const updateChartData = async (data: ChartDataPoint[]) => {
+    db.settings.chartData = data;
+    return apiCall(db.settings.chartData);
+};
+
+export const fetchEvents = () => apiCall(db.settings.events);
 
 export const addEvent = async (event: Omit<AppEvent, 'id'>) => {
     const newEvent = { ...event, id: `evt_${Date.now()}`};
-    db.events.unshift(newEvent);
+    db.settings.events.unshift(newEvent);
     return apiCall(newEvent);
 };
 
 export const updateEvent = async (updatedEvent: AppEvent) => {
     let eventFound = false;
-    db.events = db.events.map(e => {
+    db.settings.events = db.settings.events.map(e => {
         if (e.id === updatedEvent.id) {
             eventFound = true;
             return updatedEvent;
@@ -119,8 +136,8 @@ export const updateEvent = async (updatedEvent: AppEvent) => {
 };
 
 export const deleteEvent = async (eventId: string) => {
-    const initialLength = db.events.length;
-    db.events = db.events.filter(e => e.id !== eventId);
-    if (db.events.length === initialLength) throw new Error("Event not found");
+    const initialLength = db.settings.events.length;
+    db.settings.events = db.settings.events.filter(e => e.id !== eventId);
+    if (db.settings.events.length === initialLength) throw new Error("Event not found");
     return apiCall({ success: true });
 };
