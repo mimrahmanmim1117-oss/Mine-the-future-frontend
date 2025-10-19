@@ -1,46 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
+import type { Message } from '../types';
 
 interface LiveChatProps {
   onClose: () => void;
+  messages: Message[];
+  onSendMessage: (text: string) => void;
 }
 
-interface Message {
-  text: string;
-  sender: 'user' | 'support';
-}
-
-const LiveChat: React.FC<LiveChatProps> = ({ onClose }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    { text: "Hello! How can I assist you today?", sender: 'support' }
-  ]);
+const LiveChat: React.FC<LiveChatProps> = ({ onClose, messages, onSendMessage }) => {
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(scrollToBottom, [messages, isTyping]);
+  useEffect(scrollToBottom, [messages]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim() === '') return;
-
-    const userMessage: Message = { text: inputValue, sender: 'user' };
-    setMessages(prev => [...prev, userMessage]);
+    onSendMessage(inputValue);
     setInputValue('');
-    setIsTyping(true);
-
-    // Simulate support response
-    setTimeout(() => {
-      const supportResponse: Message = { 
-        text: "Thank you for your message. An agent will be with you shortly. Please provide any relevant details, such as transaction IDs or wallet addresses.", 
-        sender: 'support' 
-      };
-      setIsTyping(false);
-      setMessages(prev => [...prev, supportResponse]);
-    }, 2000);
   };
 
   return (
@@ -61,17 +42,6 @@ const LiveChat: React.FC<LiveChatProps> = ({ onClose }) => {
               </div>
             </div>
           ))}
-          {isTyping && (
-             <div className="flex items-end gap-2 justify-start">
-              <div className="bg-white/60 text-text-primary rounded-lg px-4 py-2 rounded-bl-none">
-                <div className="flex items-center space-x-1">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-0"></span>
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-150"></span>
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-300"></span>
-                </div>
-              </div>
-            </div>
-          )}
           <div ref={messagesEndRef} />
         </div>
 

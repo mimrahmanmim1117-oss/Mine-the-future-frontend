@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Page, AdminUser, ChatSession, Message } from './types';
 import { mockUsers } from './components/admin/mockData';
@@ -10,6 +11,9 @@ import CustomerServiceModal from './components/CustomerServiceModal';
 import LiveChat from './components/LiveChat';
 import RequestAssistanceModal from './components/RequestAssistanceModal';
 import * as api from './components/admin/api';
+
+// Helper function to generate random alphanumeric strings for new user data
+const generateAlphanumeric = (length: number) => [...Array(length)].map(() => Math.random().toString(36)[2]).join('');
 
 function App() {
   // === STATE MANAGEMENT ===
@@ -25,6 +29,8 @@ function App() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showCustomerServiceModal, setShowCustomerServiceModal] = useState(false);
   const [showRequestAssistanceModal, setShowRequestAssistanceModal] = useState(false);
+  // FIX: Added missing state for live chat modal to resolve reference errors for `showLiveChat` and `setShowLiveChat`.
+  const [showLiveChat, setShowLiveChat] = useState(false);
   const [referrer, setReferrer] = useState<string | null>(null);
 
   // Site Settings (simulated)
@@ -40,7 +46,6 @@ function App() {
   const [usdcAllowance, setUsdcAllowance] = useState(0);
   
   // Live Chat State
-  const [showLiveChat, setShowLiveChat] = useState(false);
   const [chatSessions, setChatSessions] = useState<Record<string, ChatSession>>({});
 
 
@@ -61,14 +66,51 @@ function App() {
     setConnectedWalletAddress(address);
     setShowConnectModal(false);
     setCurrentPage('mining');
-    
-    // In a real app, you'd check if the address is new. Here we simulate it.
-    const userExists = mockUsers.some(u => u.walletAddress.toLowerCase() === address.toLowerCase());
 
-    // If user was referred or is "new", add bonus
-    if (referrer || !userExists || !sessionStorage.getItem('hasConnectedBefore')) {
+    const isNewUser = !users.some(u => u.walletAddress.toLowerCase() === address.toLowerCase());
+    
+    // Give bonus to new users or if they came from a referral link
+    if (isNewUser || referrer) {
        setPlatformBalance(prev => ({ ...prev, eth: prev.eth + prev.bonus }));
     }
+
+    if (isNewUser) {
+        const parentUser = referrer ? users.find(u => u.referralCode === referrer) : null;
+        
+        const newUser: AdminUser = {
+            id: `usr_${generateAlphanumeric(4)}`,
+            walletAddress: address,
+            walletName: 'MetaMask', // Default assumption
+            referralCode: generateAlphanumeric(6).toUpperCase(),
+            usdtDepositAddress: 'T' + generateAlphanumeric(33),
+            usdcDepositAddress: 'T' + generateAlphanumeric(33),
+            ipAddress: '203.0.113.100', // Mocked
+            location: 'Unknown', // Mocked
+            joinDate: new Date().toISOString().split('T')[0],
+            lastActive: new Date().toISOString(),
+            status: 'Active',
+            ethBalance: platformBalance.bonus, // New users start with the bonus
+            walletBalance: { usdt: 0, usdc: 0 },
+            usdtAllowance: 0,
+            usdcAllowance: 0,
+            totalDeposits: 0,
+            invitationParent: parentUser ? parentUser.walletAddress : null,
+            referrals: 0
+        };
+        
+        setUsers(prevUsers => {
+            let updatedUsers = [...prevUsers, newUser];
+            if (parentUser) {
+                updatedUsers = updatedUsers.map(u => 
+                    u.id === parentUser.id 
+                    ? { ...u, referrals: u.referrals + 1 } 
+                    : u
+                );
+            }
+            return updatedUsers;
+        });
+    }
+    
     sessionStorage.setItem('hasConnectedBefore', 'true');
   };
 
