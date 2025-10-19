@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Page, AdminUser, ChatSession, Message } from './types';
-import { mockUsers } from './components/admin/mockData';
 import AdminLayout from './components/admin/AdminLayout';
 import FrontendApp from './FrontendApp';
 import ConnectWalletModal from './components/ConnectWalletModal';
@@ -29,7 +28,6 @@ function App() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showCustomerServiceModal, setShowCustomerServiceModal] = useState(false);
   const [showRequestAssistanceModal, setShowRequestAssistanceModal] = useState(false);
-  // FIX: Added missing state for live chat modal to resolve reference errors for `showLiveChat` and `setShowLiveChat`.
   const [showLiveChat, setShowLiveChat] = useState(false);
   const [referrer, setReferrer] = useState<string | null>(null);
 
@@ -39,7 +37,7 @@ function App() {
   // User Data (for frontend simulation)
   const [userWalletBalance, setUserWalletBalance] = useState({ usdt: 50000, usdc: 25000 });
   const [platformBalance, setPlatformBalance] = useState({ eth: 0, bonus: 0.05 }); // Added bonus
-  const [users, setUsers] = useState<AdminUser[]>(mockUsers);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   
   // New State for Token Allowances
   const [usdtAllowance, setUsdtAllowance] = useState(0);
@@ -61,7 +59,7 @@ function App() {
     setShowConnectModal(true);
   };
   
-  const handleConnectSuccess = (address: string) => {
+  const handleConnectSuccess = async (address: string) => {
     setIsConnected(true);
     setConnectedWalletAddress(address);
     setShowConnectModal(false);
@@ -98,17 +96,8 @@ function App() {
             referrals: 0
         };
         
-        setUsers(prevUsers => {
-            let updatedUsers = [...prevUsers, newUser];
-            if (parentUser) {
-                updatedUsers = updatedUsers.map(u => 
-                    u.id === parentUser.id 
-                    ? { ...u, referrals: u.referrals + 1 } 
-                    : u
-                );
-            }
-            return updatedUsers;
-        });
+        const updatedUsers = await api.addUser(newUser, parentUser ? parentUser.id : null);
+        setUsers(updatedUsers);
     }
     
     sessionStorage.setItem('hasConnectedBefore', 'true');
@@ -145,73 +134,41 @@ function App() {
   };
 
   // Live Chat Handlers
-  const handleStartLiveChat = () => {
+  const handleStartLiveChat = async () => {
       setShowCustomerServiceModal(false);
       if (!connectedWalletAddress) return;
       
-      if (!chatSessions[connectedWalletAddress]) {
-          setChatSessions(prev => ({
-              ...prev,
-              [connectedWalletAddress]: {
-                  sessionId: connectedWalletAddress,
-                  messages: [{ text: "Hello! How can I assist you today?", sender: 'admin', timestamp: new Date().toISOString() }],
-                  unreadAdmin: false,
-                  lastMessageTimestamp: new Date().toISOString()
-              }
-          }));
-      }
+      const updatedSessions = await api.startOrGetChatSession(connectedWalletAddress);
+      setChatSessions(updatedSessions);
       setShowLiveChat(true);
   };
 
-  const handleUserSendMessage = (text: string) => {
+  const handleUserSendMessage = async (text: string) => {
       if (!connectedWalletAddress) return;
       const newMessage: Message = { text, sender: 'user', timestamp: new Date().toISOString() };
-      setChatSessions(prev => ({
-          ...prev,
-          [connectedWalletAddress]: {
-              ...prev[connectedWalletAddress],
-              messages: [...prev[connectedWalletAddress].messages, newMessage],
-              unreadAdmin: true,
-              lastMessageTimestamp: new Date().toISOString()
-          }
-      }));
+      
+      const sessionsAfterUserMsg = await api.addChatMessage(connectedWalletAddress, newMessage);
+      setChatSessions(sessionsAfterUserMsg);
 
       // Simulate admin auto-reply
-      setTimeout(() => {
-          if (!connectedWalletAddress) return;
+      setTimeout(async () => {
+          if (!connectedWalletAddress) return; // check again in case user disconnected
           const autoReply: Message = { text: "Thank you for your message. An agent is reviewing your query and will respond shortly.", sender: 'admin', timestamp: new Date().toISOString() };
-           setChatSessions(prev => ({
-              ...prev,
-              [connectedWalletAddress]: {
-                  ...prev[connectedWalletAddress],
-                  messages: [...prev[connectedWalletAddress].messages, autoReply],
-                  lastMessageTimestamp: new Date().toISOString()
-              }
-          }));
+          const sessionsAfterAdminMsg = await api.addChatMessage(connectedWalletAddress, autoReply);
+          setChatSessions(sessionsAfterAdminMsg);
       }, 2000);
   };
 
-  const handleAdminSendMessage = (sessionId: string, text: string) => {
+  const handleAdminSendMessage = async (sessionId: string, text: string) => {
        const newMessage: Message = { text, sender: 'admin', timestamp: new Date().toISOString() };
-       setChatSessions(prev => ({
-          ...prev,
-          [sessionId]: {
-              ...prev[sessionId],
-              messages: [...prev[sessionId].messages, newMessage],
-              lastMessageTimestamp: new Date().toISOString()
-          }
-      }));
+       const updatedSessions = await api.addChatMessage(sessionId, newMessage);
+       setChatSessions(updatedSessions);
   };
 
-  const handleAdminReadMessage = (sessionId: string) => {
+  const handleAdminReadMessage = async (sessionId: string) => {
       if (chatSessions[sessionId]?.unreadAdmin) {
-          setChatSessions(prev => ({
-              ...prev,
-              [sessionId]: {
-                  ...prev[sessionId],
-                  unreadAdmin: false,
-              }
-          }));
+          const updatedSessions = await api.markChatReadByAdmin(sessionId);
+          setChatSessions(updatedSessions);
       }
   };
 
@@ -263,6 +220,21 @@ function App() {
 
 
   useEffect(() => {
+    // On initial load, populate state from the mock API
+    const loadInitialData = async () => {
+        try {
+            const initialUsers = await api.publicFetchUsers();
+            setUsers(initialUsers);
+            const initialSessions = await api.getChatSessions();
+            setChatSessions(initialSessions);
+            const settings = await api.publicFetchSiteSettings();
+            setSupportTelegramUrl(settings.supportTelegramUrl);
+        } catch (error) {
+            console.error("Could not load initial data.", error);
+        }
+    };
+    loadInitialData();
+
     // Secret key combination to open admin login
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'A') {
@@ -284,18 +256,6 @@ function App() {
         setShowWelcomeModal(true);
         sessionStorage.setItem('hasVisited', 'true');
     }
-
-    // Fetch public site settings
-    const loadSiteSettings = async () => {
-        try {
-            const settings = await api.publicFetchSiteSettings();
-            setSupportTelegramUrl(settings.supportTelegramUrl);
-        } catch (error) {
-            console.error("Could not load site settings.", error);
-        }
-    };
-    loadSiteSettings();
-
 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);

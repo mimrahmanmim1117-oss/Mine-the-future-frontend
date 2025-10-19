@@ -1,5 +1,6 @@
+
 import { mockUsers, mockTransactions, mockWithdrawals, mockSiteSettings } from './mockData';
-import type { AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint, SiteSettings } from '../../types';
+import type { AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint, SiteSettings, ChatSession, Message } from '../../types';
 
 // --- DATABASE SIMULATION ---
 // In a real app, this would be a database. We'll mutate this data in memory.
@@ -8,6 +9,7 @@ let db = {
   transactions: JSON.parse(JSON.stringify(mockTransactions)),
   withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
   settings: JSON.parse(JSON.stringify(mockSiteSettings)),
+  chatSessions: {} as Record<string, ChatSession>,
 };
 
 // --- API SIMULATION ---
@@ -24,6 +26,7 @@ export const setBackendStatus = (isConnected: boolean) => {
       transactions: JSON.parse(JSON.stringify(mockTransactions)),
       withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
       settings: JSON.parse(JSON.stringify(mockSiteSettings)),
+      chatSessions: {},
     };
   }
 };
@@ -57,6 +60,19 @@ export const fetchDashboardData = () => apiCall({
 });
 
 export const fetchUsers = () => apiCall(db.users);
+
+export const publicFetchUsers = () => publicApiCall(db.users);
+
+export const addUser = async (newUser: AdminUser, parentUserId: string | null): Promise<AdminUser[]> => {
+    db.users.push(newUser);
+    if (parentUserId) {
+        const parent = db.users.find(u => u.id === parentUserId);
+        if (parent) {
+            parent.referrals += 1;
+        }
+    }
+    return publicApiCall(db.users);
+};
 
 export const updateUserStatus = async (userId: string, status: AdminUser['status']) => {
     const user = db.users.find(u => u.id === userId);
@@ -95,6 +111,42 @@ export const updateWithdrawalStatus = async (withdrawalId: string, status: Withd
     }
     return apiCall(withdrawal);
 };
+
+// --- Live Chat API ---
+export const getChatSessions = async (): Promise<Record<string, ChatSession>> => {
+    return publicApiCall(db.chatSessions);
+};
+
+export const startOrGetChatSession = async (sessionId: string): Promise<Record<string, ChatSession>> => {
+    if (!db.chatSessions[sessionId]) {
+        db.chatSessions[sessionId] = {
+            sessionId: sessionId,
+            messages: [{ text: "Hello! How can I assist you today?", sender: 'admin', timestamp: new Date().toISOString() }],
+            unreadAdmin: false,
+            lastMessageTimestamp: new Date().toISOString()
+        };
+    }
+    return publicApiCall(db.chatSessions);
+};
+
+export const addChatMessage = async (sessionId: string, message: Message): Promise<Record<string, ChatSession>> => {
+    if (db.chatSessions[sessionId]) {
+        db.chatSessions[sessionId].messages.push(message);
+        db.chatSessions[sessionId].lastMessageTimestamp = message.timestamp;
+        if (message.sender === 'user') {
+            db.chatSessions[sessionId].unreadAdmin = true;
+        }
+    }
+    return publicApiCall(db.chatSessions);
+};
+
+export const markChatReadByAdmin = async (sessionId: string): Promise<Record<string, ChatSession>> => {
+    if (db.chatSessions[sessionId]) {
+        db.chatSessions[sessionId].unreadAdmin = false;
+    }
+    return publicApiCall(db.chatSessions);
+};
+
 
 // --- Site Settings API ---
 export const fetchSiteSettings = () => apiCall(db.settings);
