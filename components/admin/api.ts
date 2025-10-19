@@ -1,9 +1,9 @@
-
 import { mockUsers, mockTransactions, mockWithdrawals, mockSiteSettings } from './mockData';
 import type { AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint, SiteSettings, ChatSession, Message } from '../../types';
 
 // --- DATABASE SIMULATION ---
-// In a real app, this would be a database. We'll mutate this data in memory.
+// This acts as a persistent in-memory database for the entire app session.
+// It's initialized once and will be mutated by API calls.
 let db = {
   users: JSON.parse(JSON.stringify(mockUsers)),
   transactions: JSON.parse(JSON.stringify(mockTransactions)),
@@ -15,26 +15,20 @@ let db = {
 // --- API SIMULATION ---
 const LATENCY = 800; // ms to simulate network delay
 
-let isBackendConnected = false;
+// This flag simulates the admin's connection to the backend.
+// It's controlled by the toggle in the Admin Panel.
+let isBackendConnected = true;
 
 export const setBackendStatus = (isConnected: boolean) => {
   isBackendConnected = isConnected;
-  if (isConnected) {
-    // Reset DB on connect to have a clean state for the session
-    db = {
-      users: JSON.parse(JSON.stringify(mockUsers)),
-      transactions: JSON.parse(JSON.stringify(mockTransactions)),
-      withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
-      settings: JSON.parse(JSON.stringify(mockSiteSettings)),
-      chatSessions: {},
-    };
-  }
+  // The database is NOT reset here to ensure data persists across connections.
 };
 
 const apiCall = <T>(data: T): Promise<T> => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (isBackendConnected) {
+        // Return a deep copy to prevent direct state mutation from callers
         resolve(JSON.parse(JSON.stringify(data)));
       } else {
         reject(new Error('Could not connect to the backend. Please make sure the server is running.'));
@@ -43,12 +37,10 @@ const apiCall = <T>(data: T): Promise<T> => {
   });
 };
 
-// Public fetcher that doesn't check connection status or have latency, for frontend use
+// Public API calls for the frontend don't have latency or connection checks.
+// They interact directly with our persistent 'db'.
 const publicApiCall = <T>(data: T): Promise<T> => {
-    return new Promise((resolve) => {
-        // No latency for public calls
-        resolve(JSON.parse(JSON.stringify(data)));
-    });
+    return Promise.resolve(JSON.parse(JSON.stringify(data)));
 };
 
 // --- API ENDPOINTS ---
@@ -64,11 +56,15 @@ export const fetchUsers = () => apiCall(db.users);
 export const publicFetchUsers = () => publicApiCall(db.users);
 
 export const addUser = async (newUser: AdminUser, parentUserId: string | null): Promise<AdminUser[]> => {
-    db.users.push(newUser);
-    if (parentUserId) {
-        const parent = db.users.find(u => u.id === parentUserId);
-        if (parent) {
-            parent.referrals += 1;
+    // Prevent duplicate users
+    const userExists = db.users.some(u => u.walletAddress.toLowerCase() === newUser.walletAddress.toLowerCase());
+    if (!userExists) {
+        db.users.push(newUser);
+        if (parentUserId) {
+            const parent = db.users.find(u => u.id === parentUserId);
+            if (parent) {
+                parent.referrals += 1;
+            }
         }
     }
     return publicApiCall(db.users);
@@ -87,7 +83,7 @@ export const fetchTransactions = () => apiCall(db.transactions);
 export const fetchWithdrawals = () => apiCall(db.withdrawals);
 
 export const fetchWithdrawalsForUser = (userWallet: string) => {
-    const userWithdrawals = db.withdrawals.filter(w => w.userWallet === userWallet);
+    const userWithdrawals = db.withdrawals.filter(w => w.userWallet.toLowerCase() === userWallet.toLowerCase());
     return publicApiCall(userWithdrawals);
 };
 
