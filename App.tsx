@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Page, AdminUser, ChatSession, Message, AdminTransaction, WithdrawalRequest, SiteSettings } from './types';
 import AdminLayout from './components/admin/AdminLayout';
 import FrontendApp from './FrontendApp';
@@ -47,7 +47,7 @@ function App() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   
   // === DATA FETCHING & HANDLERS ===
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
       try {
           setIsLoading(true);
           const [initialUsers, initialSessions, initialTransactions, initialWithdrawals, settings] = await Promise.all([
@@ -67,7 +67,7 @@ function App() {
       } finally {
           setIsLoading(false);
       }
-  };
+  }, []);
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
@@ -180,21 +180,21 @@ function App() {
       }, 2000);
   };
 
-  const handleAdminSendMessage = async (sessionId: string, text: string) => {
+  const handleAdminSendMessage = useCallback(async (sessionId: string, text: string) => {
        const newMessage: Message = { text, sender: 'admin', timestamp: new Date().toISOString() };
        const updatedSessions = await api.addChatMessage(sessionId, newMessage);
        setChatSessions(updatedSessions);
-  };
+  }, []);
 
-  const handleAdminReadMessage = async (sessionId: string) => {
+  const handleAdminReadMessage = useCallback(async (sessionId: string) => {
       if (chatSessions[sessionId]?.unreadAdmin) {
           const updatedSessions = await api.markChatReadByAdmin(sessionId);
           setChatSessions(updatedSessions);
       }
-  };
+  }, [chatSessions]);
   
   // Admin Data Handlers
-  const handleUpdateUserStatus = async (userId: string, status: AdminUser['status']) => {
+  const handleUpdateUserStatus = useCallback(async (userId: string, status: AdminUser['status']) => {
     try {
       await api.updateUserStatus(userId, status);
       const updatedUsers = await api.publicFetchUsers(); // Re-fetch to ensure sync
@@ -203,9 +203,9 @@ function App() {
       alert("Failed to update user status.");
       console.error(error);
     }
-  };
+  }, []);
   
-  const handleUpdateWithdrawalStatus = async (withdrawalId: string, status: WithdrawalRequest['status']) => {
+  const handleUpdateWithdrawalStatus = useCallback(async (withdrawalId: string, status: WithdrawalRequest['status']) => {
     try {
       await api.updateWithdrawalStatus(withdrawalId, status);
       const updatedWithdrawals = await api.publicFetchWithdrawals(); // Re-fetch
@@ -214,7 +214,7 @@ function App() {
       alert("Failed to update withdrawal status.");
       console.error(error);
     }
-  };
+  }, []);
 
 
   // Mining & Transfers (for frontend simulation)
@@ -292,7 +292,7 @@ function App() {
     }
 
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [loadInitialData]);
 
   if (isAdminAuthenticated && isAdminView) {
     return (
