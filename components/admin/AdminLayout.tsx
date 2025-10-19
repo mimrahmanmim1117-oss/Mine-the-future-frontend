@@ -60,7 +60,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
   onAdminReadMessage
 }) => {
   const [activePage, setActivePage] = useState<AdminPage>('dashboard');
-  const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [isBackendConnected, setIsBackendConnected] = useState(true);
 
   useEffect(() => {
     api.setBackendStatus(isBackendConnected);
