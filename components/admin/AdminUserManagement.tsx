@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { AdminUser } from '../../types';
-import * as api from './api';
-import LoadingSpinner from './LoadingSpinner';
-import ErrorDisplay from './ErrorDisplay';
 import { ArrowDownIcon } from '../icons/ArrowDownIcon';
 import { WalletIcon } from '../icons/WalletIcon';
-import { CheckBadgeIcon } from '../icons/CheckBadgeIcon';
 import { ClockIcon } from '../icons/ClockIcon';
 import { EthereumLogo } from '../icons/EthereumLogo';
-import { TransactionsIcon } from '../icons/TransactionsIcon';
-import { PickaxeIcon } from '../icons/PickaxeIcon';
-import { GlobeIcon } from '../icons/GlobeIcon';
+
+interface AdminUserManagementProps {
+  users: AdminUser[];
+  onUpdateUserStatus: (userId: string, status: AdminUser['status']) => void;
+}
 
 const getStatusPillClasses = (status: AdminUser['status']) => {
     switch (status) {
@@ -47,45 +45,16 @@ const DetailRow: React.FC<{ label: string; children: React.ReactNode; }> = ({ la
     </div>
 );
 
-const AdminUserManagement: React.FC = () => {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+const AdminUserManagement: React.FC<AdminUserManagementProps> = ({ users, onUpdateUserStatus }) => {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-
-  const fetchUsersData = async () => {
-    try {
-        setIsLoading(true);
-        setError(null);
-        const result = await api.fetchUsers();
-        setUsers(result);
-    } catch (err) {
-        setError(err as Error);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsersData();
-  }, []);
-  
-  const handleUpdateUserStatus = async (userId: string, status: AdminUser['status']) => {
-      setUsers(users.map(u => u.id === userId ? { ...u, status } : u));
-      try {
-        await api.updateUserStatus(userId, status);
-      } catch (err) {
-        setError(err as Error);
-        fetchUsersData();
-      }
-  };
 
   const handleToggleExpand = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);
   };
   
-  if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorDisplay error={error} />;
+  if (!users) {
+      return <div>Loading users...</div>
+  }
 
   return (
     <div className="space-y-3">
@@ -149,17 +118,17 @@ const AdminUserManagement: React.FC = () => {
                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col justify-center space-y-2">
                                     <h3 className="text-sm font-semibold text-slate-800 text-center mb-2">Actions</h3>
                                     {user.status === 'Pending' && (
-                                    <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
+                                    <button onClick={() => onUpdateUserStatus(user.id, 'Active')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
                                         Approve User
                                     </button>
                                     )}
                                     {user.status === 'Active' && (
-                                    <button onClick={() => handleUpdateUserStatus(user.id, 'Suspended')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
+                                    <button onClick={() => onUpdateUserStatus(user.id, 'Suspended')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
                                         Suspend User
                                     </button>
                                     )}
                                     {user.status === 'Suspended' && (
-                                    <button onClick={() => handleUpdateUserStatus(user.id, 'Active')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
+                                    <button onClick={() => onUpdateUserStatus(user.id, 'Active')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-md transition-colors text-sm">
                                         Re-activate User
                                     </button>
                                     )}

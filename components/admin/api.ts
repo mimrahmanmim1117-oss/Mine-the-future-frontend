@@ -70,17 +70,22 @@ export const addUser = async (newUser: AdminUser, parentUserId: string | null): 
     return publicApiCall(db.users);
 };
 
-export const updateUserStatus = async (userId: string, status: AdminUser['status']) => {
+export const updateUserStatus = (userId: string, status: AdminUser['status']) => {
     const user = db.users.find(u => u.id === userId);
     if(user) {
         user.status = status;
     }
+    // Using apiCall to simulate the network request for this mutation
     return apiCall(user);
 };
 
 export const fetchTransactions = () => apiCall(db.transactions);
+export const publicFetchTransactions = () => publicApiCall(db.transactions);
+
 
 export const fetchWithdrawals = () => apiCall(db.withdrawals);
+export const publicFetchWithdrawals = () => publicApiCall(db.withdrawals);
+
 
 export const fetchWithdrawalsForUser = (userWallet: string) => {
     const userWithdrawals = db.withdrawals.filter(w => w.userWallet.toLowerCase() === userWallet.toLowerCase());
@@ -100,11 +105,12 @@ export const requestAssistedWithdrawal = (userWallet: string, amount: number, me
     return publicApiCall(newRequest);
 };
 
-export const updateWithdrawalStatus = async (withdrawalId: string, status: WithdrawalRequest['status']) => {
+export const updateWithdrawalStatus = (withdrawalId: string, status: WithdrawalRequest['status']) => {
     const withdrawal = db.withdrawals.find(w => w.id === withdrawalId);
     if(withdrawal) {
         withdrawal.status = status;
     }
+    // Using apiCall to simulate the network request for this mutation
     return apiCall(withdrawal);
 };
 

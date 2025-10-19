@@ -1,16 +1,16 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import type { AdminUser } from '../../types';
 import { UsersIcon } from '../icons/UsersIcon';
-import * as api from './api';
-import LoadingSpinner from './LoadingSpinner';
-import ErrorDisplay from './ErrorDisplay';
-
 
 interface ReferralNodeProps {
   user: AdminUser;
   children: AdminUser[];
   allUsers: AdminUser[];
   level: number;
+}
+
+interface AdminReferralsProps {
+    users: AdminUser[];
 }
 
 const getStatusColor = (status: AdminUser['status']) => {
@@ -51,26 +51,7 @@ const ReferralNode: React.FC<ReferralNodeProps> = ({ user, children, allUsers, l
   );
 };
 
-const AdminReferrals: React.FC = () => {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-        try {
-            setIsLoading(true);
-            setError(null);
-            const result = await api.fetchUsers();
-            setUsers(result);
-        } catch (err) {
-            setError(err as Error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    fetchData();
-  }, []);
+const AdminReferrals: React.FC<AdminReferralsProps> = ({ users }) => {
 
   const referralTree = useMemo(() => {
     if (!users || users.length === 0) return [];
@@ -85,8 +66,9 @@ const AdminReferrals: React.FC = () => {
     return rootUsers;
   }, [users]);
   
-  if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorDisplay error={error} />;
+  if (!users) {
+      return <div>Loading users...</div>
+  }
 
 
   return (

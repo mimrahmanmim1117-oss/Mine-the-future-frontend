@@ -1,34 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { AdminTransaction } from '../../types';
-import * as api from './api';
-import LoadingSpinner from './LoadingSpinner';
-import ErrorDisplay from './ErrorDisplay';
 
-const AdminTransactions: React.FC = () => {
-  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  
+interface AdminTransactionsProps {
+  transactions: AdminTransaction[];
+}
+
+const AdminTransactions: React.FC<AdminTransactionsProps> = ({ transactions }) => {
   const [filter, setFilter] = useState<'all' | 'USDT' | 'USDC'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Completed' | 'Pending' | 'Failed'>('all');
 
-  useEffect(() => {
-    const fetchData = async () => {
-        try {
-            setIsLoading(true);
-            setError(null);
-            const result = await api.fetchTransactions();
-            setTransactions(result);
-        } catch (err) {
-            setError(err as Error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    fetchData();
-  }, []);
-  
   const filteredTransactions = useMemo(() => {
+    if (!transactions) return [];
     return transactions
       .filter(tx => filter === 'all' || tx.currency === filter)
       .filter(tx => statusFilter === 'all' || tx.status === statusFilter);
@@ -41,9 +23,10 @@ const AdminTransactions: React.FC = () => {
       case 'Failed': return 'bg-red-100 text-red-700';
     }
   };
-
-  if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorDisplay error={error} />;
+  
+  if (!transactions) {
+    return <div>Loading transactions...</div>;
+  }
 
   return (
     <div>

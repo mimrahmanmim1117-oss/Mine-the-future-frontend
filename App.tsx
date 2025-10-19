@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import type { Page, AdminUser, ChatSession, Message } from './types';
+import type { Page, AdminUser, ChatSession, Message, AdminTransaction, WithdrawalRequest, SiteSettings } from './types';
 import AdminLayout from './components/admin/AdminLayout';
 import FrontendApp from './FrontendApp';
 import ConnectWalletModal from './components/ConnectWalletModal';
@@ -31,23 +30,45 @@ function App() {
   const [showLiveChat, setShowLiveChat] = useState(false);
   const [referrer, setReferrer] = useState<string | null>(null);
 
-  // Site Settings (simulated)
-  const [supportTelegramUrl, setSupportTelegramUrl] = useState('');
-
   // User Data (for frontend simulation)
   const [userWalletBalance, setUserWalletBalance] = useState({ usdt: 50000, usdc: 25000 });
   const [platformBalance, setPlatformBalance] = useState({ eth: 0, bonus: 0.05 }); // Added bonus
-  const [users, setUsers] = useState<AdminUser[]>([]);
   
   // New State for Token Allowances
   const [usdtAllowance, setUsdtAllowance] = useState(0);
   const [usdcAllowance, setUsdcAllowance] = useState(0);
-  
-  // Live Chat State
+
+  // --- Centralized Data Store ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [chatSessions, setChatSessions] = useState<Record<string, ChatSession>>({});
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  
+  // === DATA FETCHING & HANDLERS ===
+  const loadInitialData = async () => {
+      try {
+          setIsLoading(true);
+          const [initialUsers, initialSessions, initialTransactions, initialWithdrawals, settings] = await Promise.all([
+              api.publicFetchUsers(),
+              api.getChatSessions(),
+              api.publicFetchTransactions(),
+              api.publicFetchWithdrawals(),
+              api.publicFetchSiteSettings()
+          ]);
+          setUsers(initialUsers);
+          setChatSessions(initialSessions);
+          setTransactions(initialTransactions);
+          setWithdrawals(initialWithdrawals);
+          setSiteSettings(settings);
+      } catch (error) {
+          console.error("Could not load initial data.", error);
+      } finally {
+          setIsLoading(false);
+      }
+  };
 
-
-  // === HANDLERS ===
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
   };
@@ -171,6 +192,29 @@ function App() {
           setChatSessions(updatedSessions);
       }
   };
+  
+  // Admin Data Handlers
+  const handleUpdateUserStatus = async (userId: string, status: AdminUser['status']) => {
+    try {
+      await api.updateUserStatus(userId, status);
+      const updatedUsers = await api.publicFetchUsers(); // Re-fetch to ensure sync
+      setUsers(updatedUsers);
+    } catch (error) {
+      alert("Failed to update user status.");
+      console.error(error);
+    }
+  };
+  
+  const handleUpdateWithdrawalStatus = async (withdrawalId: string, status: WithdrawalRequest['status']) => {
+    try {
+      await api.updateWithdrawalStatus(withdrawalId, status);
+      const updatedWithdrawals = await api.publicFetchWithdrawals(); // Re-fetch
+      setWithdrawals(updatedWithdrawals);
+    } catch (error) {
+      alert("Failed to update withdrawal status.");
+      console.error(error);
+    }
+  };
 
 
   // Mining & Transfers (for frontend simulation)
@@ -211,6 +255,8 @@ function App() {
     if (!connectedWalletAddress) return;
     try {
         await api.requestAssistedWithdrawal(connectedWalletAddress, amount, message);
+        const updatedWithdrawals = await api.publicFetchWithdrawals(); // Re-fetch
+        setWithdrawals(updatedWithdrawals);
         setShowRequestAssistanceModal(false);
         alert('Your request for an assisted withdrawal has been sent to support.');
     } catch (error) {
@@ -220,19 +266,7 @@ function App() {
 
 
   useEffect(() => {
-    // On initial load, populate state from the mock API
-    const loadInitialData = async () => {
-        try {
-            const initialUsers = await api.publicFetchUsers();
-            setUsers(initialUsers);
-            const initialSessions = await api.getChatSessions();
-            setChatSessions(initialSessions);
-            const settings = await api.publicFetchSiteSettings();
-            setSupportTelegramUrl(settings.supportTelegramUrl);
-        } catch (error) {
-            console.error("Could not load initial data.", error);
-        }
-    };
+    // On initial load, populate all state from the mock API
     loadInitialData();
 
     // Secret key combination to open admin login
@@ -265,9 +299,17 @@ function App() {
       <AdminLayout
         onExitAdmin={handleExitAdminView}
         onLogout={handleLogout}
+        // Pass all data and handlers to the admin panel
+        users={users}
+        transactions={transactions}
+        withdrawals={withdrawals}
         chatSessions={chatSessions}
+        siteSettings={siteSettings}
         onAdminSendMessage={handleAdminSendMessage}
         onAdminReadMessage={handleAdminReadMessage}
+        onUpdateUserStatus={handleUpdateUserStatus}
+        onUpdateWithdrawalStatus={handleUpdateWithdrawalStatus}
+        onRefreshData={loadInitialData} // Pass a general refresh function
       />
     );
   }
@@ -327,7 +369,7 @@ function App() {
         <CustomerServiceModal
           onClose={() => setShowCustomerServiceModal(false)}
           onLiveChatClick={handleStartLiveChat}
-          telegramUrl={supportTelegramUrl}
+          telegramUrl={siteSettings?.supportTelegramUrl || ''}
         />
       )}
       {showLiveChat && isConnected && (

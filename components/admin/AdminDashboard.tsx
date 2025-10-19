@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { AdminTransaction, AdminUser, WithdrawalRequest, ChartDataPoint } from '../../types';
 import { UsersIcon } from '../icons/UsersIcon';
 import { EthereumLogo } from '../icons/EthereumLogo';
 import { TransferIcon } from '../icons/TransferIcon';
 import { WalletIcon } from '../icons/WalletIcon';
-import * as api from './api';
-import LoadingSpinner from './LoadingSpinner';
-import ErrorDisplay from './ErrorDisplay';
 
 interface DashboardData {
     users: AdminUser[];
@@ -37,32 +34,11 @@ const InfoCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
     </div>
 );
 
-const AdminDashboard: React.FC = () => {
-    const [data, setData] = useState<DashboardData | null>(null);
-    const [error, setError] = useState<Error | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true);
-                setError(null);
-                const result = await api.fetchDashboardData();
-                setData(result);
-            } catch (err) {
-                setError(err as Error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
-
-    if (isLoading) return <LoadingSpinner />;
-    if (error) return <ErrorDisplay error={error} />;
-    if (!data) return null;
-
-    const { users, transactions, withdrawals } = data;
+const AdminDashboard: React.FC<DashboardData> = ({ users, transactions, withdrawals }) => {
+    
+    if (!users || !transactions || !withdrawals) {
+        return <div>Loading data...</div>;
+    }
 
     const recentTransactions = [...transactions].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
     const totalEthMined = users.reduce((sum, user) => sum + user.ethBalance, 0);

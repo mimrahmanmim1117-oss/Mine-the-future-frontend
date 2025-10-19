@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { AdminUser } from '../../types';
-import * as api from './api';
-import LoadingSpinner from './LoadingSpinner';
-import ErrorDisplay from './ErrorDisplay';
 import { CopyIcon } from '../icons/CopyIcon';
 import { SearchIcon } from '../icons/SearchIcon';
+
+interface AdminWalletsProps {
+    users: AdminUser[];
+}
 
 const getStatusPillClasses = (status: AdminUser['status']) => {
     switch (status) {
@@ -29,29 +30,11 @@ const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
     );
 };
 
-const AdminWallets: React.FC = () => {
-    const [users, setUsers] = useState<AdminUser[]>([]);
-    const [error, setError] = useState<Error | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+const AdminWallets: React.FC<AdminWalletsProps> = ({ users }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true);
-                setError(null);
-                const result = await api.fetchUsers();
-                setUsers(result);
-            } catch (err) {
-                setError(err as Error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
-
     const filteredUsers = useMemo(() => {
+        if (!users) return [];
         const lowercasedFilter = searchTerm.toLowerCase();
         if (!lowercasedFilter) {
             return users;
@@ -63,8 +46,9 @@ const AdminWallets: React.FC = () => {
         );
     }, [searchTerm, users]);
 
-    if (isLoading) return <LoadingSpinner />;
-    if (error) return <ErrorDisplay error={error} />;
+    if (!users) {
+        return <div>Loading wallets...</div>
+    }
 
     return (
         <div>

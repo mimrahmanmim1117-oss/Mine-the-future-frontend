@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { WithdrawalRequest } from '../../types';
 import { EthereumLogo } from '../icons/EthereumLogo';
-import * as api from './api';
-import LoadingSpinner from './LoadingSpinner';
-import ErrorDisplay from './ErrorDisplay';
+
+interface AdminWithdrawalsProps {
+    withdrawals: WithdrawalRequest[];
+    onUpdateWithdrawalStatus: (withdrawalId: string, status: WithdrawalRequest['status']) => void;
+}
 
 const getStatusColor = (status: WithdrawalRequest['status']) => {
     switch (status) {
@@ -15,40 +17,13 @@ const getStatusColor = (status: WithdrawalRequest['status']) => {
     }
 };
 
-const AdminWithdrawals: React.FC = () => {
-    const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
-    const [error, setError] = useState<Error | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onUpdateWithdrawalStatus }) => {
+    
+    if (!withdrawals) {
+        return <div>Loading withdrawals...</div>
+    }
 
-    const fetchWithdrawalsData = async () => {
-        try {
-            setIsLoading(true);
-            setError(null);
-            const result = await api.fetchWithdrawals();
-            setWithdrawals(result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-        } catch (err) {
-            setError(err as Error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchWithdrawalsData();
-    }, []);
-
-    const handleUpdateWithdrawalStatus = async (withdrawalId: string, status: WithdrawalRequest['status']) => {
-        setWithdrawals(withdrawals.map(w => w.id === withdrawalId ? { ...w, status } : w));
-        try {
-            await api.updateWithdrawalStatus(withdrawalId, status);
-        } catch (err) {
-            setError(err as Error);
-            fetchWithdrawalsData(); // Revert on failure
-        }
-    };
-
-    if (isLoading) return <LoadingSpinner />;
-    if (error) return <ErrorDisplay error={error} />;
+    const sortedWithdrawals = [...withdrawals].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     return (
         <div>
@@ -65,7 +40,7 @@ const AdminWithdrawals: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {withdrawals.map(w => (
+                            {sortedWithdrawals.map(w => (
                                 <tr key={w.id} className="border-b border-slate-200 last:border-b-0 hover:bg-slate-50 text-sm">
                                     <td className="p-4">
                                       <p className="font-mono text-slate-700 truncate" title={w.userWallet}>{`${w.userWallet.substring(0, 10)}...${w.userWallet.substring(w.userWallet.length - 4)}`}</p>
@@ -82,20 +57,20 @@ const AdminWithdrawals: React.FC = () => {
                                     <td className="p-4 text-center space-x-2">
                                         {w.status === 'Pending' && (
                                             <>
-                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Approved')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                <button onClick={() => onUpdateWithdrawalStatus(w.id, 'Approved')} className="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                                                     Approve
                                                 </button>
-                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Rejected')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                <button onClick={() => onUpdateWithdrawalStatus(w.id, 'Rejected')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                                                     Reject
                                                 </button>
                                             </>
                                         )}
                                         {w.status === 'Pending Assistance' && (
                                             <>
-                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Awaiting User Confirmation')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                <button onClick={() => onUpdateWithdrawalStatus(w.id, 'Awaiting User Confirmation')} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                                                     Prepare
                                                 </button>
-                                                <button onClick={() => handleUpdateWithdrawalStatus(w.id, 'Rejected')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
+                                                <button onClick={() => onUpdateWithdrawalStatus(w.id, 'Rejected')} className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded-md transition-colors text-xs">
                                                     Reject
                                                 </button>
                                             </>

@@ -10,7 +10,7 @@ import { ChartBarIcon } from '../icons/ChartBarIcon';
 import { CalendarIcon } from '../icons/CalendarIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
 
-import type { AdminPage, ChatSession } from '../../types';
+import type { AdminPage, ChatSession, AdminUser, AdminTransaction, WithdrawalRequest, SiteSettings } from '../../types';
 import * as api from './api';
 
 import AdminDashboard from './AdminDashboard';
@@ -23,7 +23,7 @@ import AdminChartManagement from './AdminChartManagement';
 import AdminEventManagement from './AdminEventManagement';
 import AdminAnalysis from './AdminAnalysis';
 import AdminLiveChat from './AdminLiveChat';
-import AdminWallets from './AdminWallets'; // New Import
+import AdminWallets from './AdminWallets';
 
 import { WalletIcon } from '../icons/WalletIcon';
 import { TransactionsIcon } from '../icons/TransactionsIcon';
@@ -32,41 +32,49 @@ import { ReferralIcon } from '../icons/ReferralIcon';
 import { SettingsIcon } from '../icons/SettingsIcon';
 import { ChatBubbleLeftRightIcon } from '../icons/ChatBubbleLeftRightIcon';
 
-
-// Placeholder component for new pages
-const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
-    <div>
-        <h1 className="text-3xl font-bold mb-8 text-slate-900">{title}</h1>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-            <p className="text-slate-600">This page is under construction. Backend logic can be implemented here.</p>
-        </div>
-    </div>
-);
-
-
 interface AdminLayoutProps {
   onExitAdmin: () => void;
   onLogout: () => void;
+  // Data props
+  users: AdminUser[];
+  transactions: AdminTransaction[];
+  withdrawals: WithdrawalRequest[];
   chatSessions: Record<string, ChatSession>;
+  siteSettings: SiteSettings | null;
+  // Handler props
   onAdminSendMessage: (sessionId: string, text: string) => void;
   onAdminReadMessage: (sessionId: string) => void;
+  onUpdateUserStatus: (userId: string, status: AdminUser['status']) => void;
+  onUpdateWithdrawalStatus: (withdrawalId: string, status: WithdrawalRequest['status']) => void;
+  onRefreshData: () => void;
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ 
-  onExitAdmin, 
-  onLogout, 
-  chatSessions, 
-  onAdminSendMessage,
-  onAdminReadMessage
-}) => {
+const AdminLayout: React.FC<AdminLayoutProps> = (props) => {
+  const { 
+    onExitAdmin, 
+    onLogout, 
+    users,
+    transactions,
+    withdrawals,
+    chatSessions, 
+    siteSettings,
+    onAdminSendMessage,
+    onAdminReadMessage,
+    onUpdateUserStatus,
+    onUpdateWithdrawalStatus,
+    onRefreshData
+  } = props;
+
   const [activePage, setActivePage] = useState<AdminPage>('dashboard');
   const [isBackendConnected, setIsBackendConnected] = useState(true);
 
   useEffect(() => {
     api.setBackendStatus(isBackendConnected);
-  }, [isBackendConnected]);
+    if(isBackendConnected) {
+        onRefreshData();
+    }
+  }, [isBackendConnected, onRefreshData]);
 
-  // Fix: Add explicit type `ChatSession` to `s` to resolve type inference issue.
   const unreadChatCount = Object.values(chatSessions).filter((s: ChatSession) => s.unreadAdmin).length;
 
   const navItems = [
@@ -83,39 +91,40 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-5 h-5" /> },
   ];
   
-  const pageKey = `${activePage}-${isBackendConnected}`;
-
   const renderContent = () => {
+    if (!isBackendConnected) {
+        return <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-6 my-8"><h2 className="text-lg font-bold">Backend Disconnected</h2><p>Please re-connect to view data.</p></div>;
+    }
+
     switch (activePage) {
       case 'dashboard':
-        return <AdminDashboard key={pageKey} />;
+        return <AdminDashboard users={users} transactions={transactions} withdrawals={withdrawals} />;
       case 'users':
-        return <AdminUserManagement key={pageKey} />;
+        return <AdminUserManagement users={users} onUpdateUserStatus={onUpdateUserStatus} />;
        case 'livechat':
         return <AdminLiveChat 
-                  key={pageKey} 
                   sessions={chatSessions} 
                   onSendMessage={onAdminSendMessage}
                   onReadMessage={onAdminReadMessage}
                 />;
        case 'wallets':
-        return <AdminWallets key={pageKey} />;
+        return <AdminWallets users={users} />;
       case 'deposits':
-        return <AdminTransactions key={pageKey} />;
+        return <AdminTransactions transactions={transactions} />;
       case 'withdrawals':
-        return <AdminWithdrawals key={pageKey} />;
+        return <AdminWithdrawals withdrawals={withdrawals} onUpdateWithdrawalStatus={onUpdateWithdrawalStatus} />;
       case 'team':
-        return <AdminReferrals key={pageKey} />;
+        return <AdminReferrals users={users} />;
        case 'chart':
-        return <AdminChartManagement key={pageKey} />;
+        return <AdminChartManagement />;
       case 'events':
-        return <AdminEventManagement key={pageKey} />;
+        return <AdminEventManagement />;
        case 'analysis':
-        return <AdminAnalysis key={pageKey} />;
+        return <AdminAnalysis />;
        case 'settings':
-        return <AdminSiteSettings key={pageKey} />;
+        return <AdminSiteSettings />;
       default:
-        return <AdminDashboard key={pageKey} />;
+        return <AdminDashboard users={users} transactions={transactions} withdrawals={withdrawals} />;
     }
   };
 
@@ -141,7 +150,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
             >
               {item.icon}
               <span className="ml-3 flex-grow text-left">{item.label}</span>
-              {item.badge && item.badge > 0 && (
+              {item.badge !== undefined && item.badge > 0 && (
                 <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{item.badge}</span>
               )}
             </button>
