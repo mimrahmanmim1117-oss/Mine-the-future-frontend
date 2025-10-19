@@ -15,7 +15,6 @@ const AdminLiveChat: React.FC<AdminLiveChatProps> = ({ sessions, onSendMessage, 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const sortedSessions = useMemo(() => {
-        // Fix: Add explicit types `ChatSession` to `a` and `b` to resolve type inference issue.
         return Object.values(sessions).sort((a: ChatSession, b: ChatSession) => new Date(b.lastMessageTimestamp).getTime() - new Date(a.lastMessageTimestamp).getTime());
     }, [sessions]);
     
@@ -33,10 +32,13 @@ const AdminLiveChat: React.FC<AdminLiveChatProps> = ({ sessions, onSendMessage, 
     }, [selectedSession?.messages]);
     
     useEffect(() => {
-        if (selectedSessionId) {
+        // Only mark as read if the session is selected and has unread messages.
+        // This prevents an infinite loop caused by the onReadMessage callback
+        // changing on every render.
+        if (selectedSessionId && sessions[selectedSessionId]?.unreadAdmin) {
             onReadMessage(selectedSessionId);
         }
-    }, [selectedSessionId, onReadMessage]);
+    }, [selectedSessionId, sessions, onReadMessage]);
 
     const handleSelectSession = (sessionId: string) => {
         setSelectedSessionId(sessionId);
@@ -95,7 +97,7 @@ const AdminLiveChat: React.FC<AdminLiveChatProps> = ({ sessions, onSendMessage, 
                         </div>
                         <div className="flex-grow p-4 overflow-y-auto space-y-4 bg-slate-50">
                             {selectedSession.messages.map((msg, index) => (
-                                <div key={index} className={`flex items-end gap-2 ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                                <div key={`${msg.timestamp}-${index}`} className={`flex items-end gap-2 ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-lg rounded-lg px-4 py-2 shadow-sm ${msg.sender === 'admin' ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'}`}>
                                         <p className="text-sm">{msg.text}</p>
                                     </div>

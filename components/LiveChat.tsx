@@ -36,7 +36,7 @@ const LiveChat: React.FC<LiveChatProps> = ({ onClose, messages, onSendMessage })
         {/* Messages */}
         <div className="flex-grow p-4 overflow-y-auto space-y-4">
           {messages.map((msg, index) => (
-            <div key={index} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={`${msg.timestamp}-${index}`} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-xs md:max-w-sm rounded-lg px-4 py-2 ${msg.sender === 'user' ? 'bg-brand-sky text-white rounded-br-none' : 'bg-white/60 text-text-primary rounded-bl-none'}`}>
                 <p className="text-sm">{msg.text}</p>
               </div>

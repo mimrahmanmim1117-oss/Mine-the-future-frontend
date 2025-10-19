@@ -187,11 +187,11 @@ function App() {
   }, []);
 
   const handleAdminReadMessage = useCallback(async (sessionId: string) => {
-      if (chatSessions[sessionId]?.unreadAdmin) {
-          const updatedSessions = await api.markChatReadByAdmin(sessionId);
-          setChatSessions(updatedSessions);
-      }
-  }, [chatSessions]);
+      // The check for whether a message is unread is now handled in the
+      // calling component to make this function stable and prevent re-render loops.
+      const updatedSessions = await api.markChatReadByAdmin(sessionId);
+      setChatSessions(updatedSessions);
+  }, []);
   
   // Admin Data Handlers
   const handleUpdateUserStatus = useCallback(async (userId: string, status: AdminUser['status']) => {

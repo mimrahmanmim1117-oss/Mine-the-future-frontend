@@ -56,27 +56,32 @@ export const fetchUsers = () => apiCall(db.users);
 export const publicFetchUsers = () => publicApiCall(db.users);
 
 export const addUser = async (newUser: AdminUser, parentUserId: string | null): Promise<AdminUser[]> => {
-    // Prevent duplicate users
     const userExists = db.users.some(u => u.walletAddress.toLowerCase() === newUser.walletAddress.toLowerCase());
     if (!userExists) {
-        db.users.push(newUser);
+        let newUsers = [...db.users, newUser];
         if (parentUserId) {
-            const parent = db.users.find(u => u.id === parentUserId);
-            if (parent) {
-                parent.referrals += 1;
-            }
+            newUsers = newUsers.map(u => {
+                if (u.id === parentUserId) {
+                    return { ...u, referrals: u.referrals + 1 };
+                }
+                return u;
+            });
         }
+        db.users = newUsers;
     }
     return publicApiCall(db.users);
 };
 
 export const updateUserStatus = (userId: string, status: AdminUser['status']) => {
-    const user = db.users.find(u => u.id === userId);
-    if(user) {
-        user.status = status;
-    }
-    // Using apiCall to simulate the network request for this mutation
-    return apiCall(user);
+    let updatedUser: AdminUser | undefined;
+    db.users = db.users.map(u => {
+      if (u.id === userId) {
+        updatedUser = { ...u, status };
+        return updatedUser;
+      }
+      return u;
+    });
+    return apiCall(updatedUser);
 };
 
 export const fetchTransactions = () => apiCall(db.transactions);
@@ -101,17 +106,20 @@ export const requestAssistedWithdrawal = (userWallet: string, amount: number, me
         status: 'Pending Assistance',
         timestamp: new Date().toISOString(),
     };
-    db.withdrawals.unshift(newRequest);
+    db.withdrawals = [newRequest, ...db.withdrawals];
     return publicApiCall(newRequest);
 };
 
 export const updateWithdrawalStatus = (withdrawalId: string, status: WithdrawalRequest['status']) => {
-    const withdrawal = db.withdrawals.find(w => w.id === withdrawalId);
-    if(withdrawal) {
-        withdrawal.status = status;
-    }
-    // Using apiCall to simulate the network request for this mutation
-    return apiCall(withdrawal);
+    let updatedWithdrawal: WithdrawalRequest | undefined;
+    db.withdrawals = db.withdrawals.map(w => {
+        if (w.id === withdrawalId) {
+            updatedWithdrawal = { ...w, status };
+            return updatedWithdrawal;
+        }
+        return w;
+    });
+    return apiCall(updatedWithdrawal);
 };
 
 // --- Live Chat API ---
@@ -121,30 +129,47 @@ export const getChatSessions = async (): Promise<Record<string, ChatSession>> =>
 
 export const startOrGetChatSession = async (sessionId: string): Promise<Record<string, ChatSession>> => {
     if (!db.chatSessions[sessionId]) {
-        db.chatSessions[sessionId] = {
-            sessionId: sessionId,
-            messages: [{ text: "Hello! How can I assist you today?", sender: 'admin', timestamp: new Date().toISOString() }],
-            unreadAdmin: false,
-            lastMessageTimestamp: new Date().toISOString()
+        db.chatSessions = {
+            ...db.chatSessions,
+            [sessionId]: {
+                sessionId: sessionId,
+                messages: [{ text: "Hello! How can I assist you today?", sender: 'admin', timestamp: new Date().toISOString() }],
+                unreadAdmin: false,
+                lastMessageTimestamp: new Date().toISOString()
+            }
         };
     }
     return publicApiCall(db.chatSessions);
 };
 
 export const addChatMessage = async (sessionId: string, message: Message): Promise<Record<string, ChatSession>> => {
-    if (db.chatSessions[sessionId]) {
-        db.chatSessions[sessionId].messages.push(message);
-        db.chatSessions[sessionId].lastMessageTimestamp = message.timestamp;
-        if (message.sender === 'user') {
-            db.chatSessions[sessionId].unreadAdmin = true;
-        }
+    const currentSession = db.chatSessions[sessionId];
+    if (currentSession) {
+         const updatedSession: ChatSession = {
+            ...currentSession,
+            messages: [...currentSession.messages, message],
+            lastMessageTimestamp: message.timestamp,
+            unreadAdmin: message.sender === 'user' ? true : currentSession.unreadAdmin,
+        };
+        db.chatSessions = {
+            ...db.chatSessions,
+            [sessionId]: updatedSession,
+        };
     }
     return publicApiCall(db.chatSessions);
 };
 
 export const markChatReadByAdmin = async (sessionId: string): Promise<Record<string, ChatSession>> => {
-    if (db.chatSessions[sessionId]) {
-        db.chatSessions[sessionId].unreadAdmin = false;
+    const currentSession = db.chatSessions[sessionId];
+    if (currentSession) {
+        const updatedSession: ChatSession = {
+            ...currentSession,
+            unreadAdmin: false,
+        };
+        db.chatSessions = {
+            ...db.chatSessions,
+            [sessionId]: updatedSession
+        };
     }
     return publicApiCall(db.chatSessions);
 };
@@ -172,7 +197,7 @@ export const fetchEvents = () => apiCall(db.settings.events);
 
 export const addEvent = async (event: Omit<AppEvent, 'id'>) => {
     const newEvent = { ...event, id: `evt_${Date.now()}`};
-    db.settings.events.unshift(newEvent);
+    db.settings.events = [newEvent, ...db.settings.events];
     return apiCall(newEvent);
 };
 
