@@ -73,15 +73,13 @@ export const addUser = async (newUser: AdminUser, parentUserId: string | null): 
 };
 
 export const updateUserStatus = (userId: string, status: AdminUser['status']) => {
-    let updatedUser: AdminUser | undefined;
     db.users = db.users.map(u => {
       if (u.id === userId) {
-        updatedUser = { ...u, status, lastActive: new Date().toISOString() };
-        return updatedUser;
+        return { ...u, status, lastActive: new Date().toISOString() };
       }
       return u;
     });
-    return apiCall(updatedUser);
+    return apiCall(db.users);
 };
 
 export const updateUserBalanceAndAllowance = async (userWallet: string, newEthBalance: number, newWalletBalance: {usdt: number, usdc: number}, newAllowance: {usdt: number, usdc: number}) => {
@@ -124,19 +122,17 @@ export const requestAssistedWithdrawal = (userWallet: string, amount: number, me
         timestamp: new Date().toISOString(),
     };
     db.withdrawals = [newRequest, ...db.withdrawals];
-    return publicApiCall(newRequest);
+    return publicApiCall(db.withdrawals);
 };
 
 export const updateWithdrawalStatus = (withdrawalId: string, status: WithdrawalRequest['status']) => {
-    let updatedWithdrawal: WithdrawalRequest | undefined;
     db.withdrawals = db.withdrawals.map(w => {
         if (w.id === withdrawalId) {
-            updatedWithdrawal = { ...w, status };
-            return updatedWithdrawal;
+            return { ...w, status };
         }
         return w;
     });
-    return apiCall(updatedWithdrawal);
+    return apiCall(db.withdrawals);
 };
 
 // --- Live Chat API ---

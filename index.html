@@ -40,6 +40,8 @@
             animation: {
               'scroll': 'scroll 40s linear infinite',
               'scroll-reverse': 'scroll-reverse 40s linear infinite',
+              'float': 'float 6s ease-in-out infinite',
+              'pulse-fast': 'pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
               scroll: {
@@ -49,7 +51,14 @@
               'scroll-reverse': {
                 '0%': { transform: 'translateX(-100%)' },
                 '100%': { transform: 'translateX(0)' },
-              }
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0px)' },
+                '50%': { transform: 'translateY(-10px)' },
+              },
+               pulse: {
+                '50%': { opacity: '.7' },
+              },
             }
           },
         },

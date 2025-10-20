@@ -1,6 +1,17 @@
 import React from 'react';
 import { EthereumLogo } from './icons/EthereumLogo';
-import { GiftIcon } from './icons/GiftIcon';
+
+// This is the new icon component, defined locally for this modal
+const UnlockedBonusIcon: React.FC = () => (
+  <div className="relative w-24 h-24 flex items-center justify-center mb-6">
+    <div className="absolute -inset-2 rounded-full bg-brand-sky opacity-20 blur-xl animate-pulse"></div>
+    <div className="absolute -inset-1 rounded-full bg-brand-sky opacity-20 blur-md animate-pulse [animation-delay:-2s]"></div>
+    <div className="relative w-full h-full rounded-full bg-slate-800 p-1 flex items-center justify-center bg-gradient-to-br from-brand-sky to-brand-accent before:absolute before:inset-1 before:rounded-full before:bg-slate-800">
+      <EthereumLogo className="w-12 h-12 text-white relative z-10 animate-float" />
+    </div>
+  </div>
+);
+
 
 interface EngagementModalProps {
   onClose: () => void;
@@ -12,42 +23,42 @@ const EngagementModal: React.FC<EngagementModalProps> = ({ onClose, onConnect, r
   const isReferred = !!referrer;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex justify-center items-center backdrop-blur-sm p-4">
-      <div className="bg-white/50 backdrop-blur-xl text-text-primary rounded-lg shadow-2xl max-w-md w-full border border-white/30 text-center overflow-hidden transform transition-all animate-fade-in-up">
+    <div className="fixed inset-0 bg-slate-900/50 z-50 flex justify-center items-center backdrop-blur-md p-4 animate-fade-in">
+      <div className="bg-slate-800/80 backdrop-blur-2xl text-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-700 text-center overflow-hidden transform transition-all animate-scale-in">
+        {/* Decorative pattern */}
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(60,130,246,0.1)_0,_transparent_60%)] -z-10"></div>
+        
         <div className="p-8 relative">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-accent to-violet-500"></div>
-            <div className="flex justify-center mb-5">
-                <div className="bg-brand-sky/10 p-4 rounded-full">
-                    <GiftIcon className="w-12 h-12 text-brand-sky" />
-                </div>
-            </div>
-            <h2 className="text-2xl font-bold mb-3 text-gray-900">
+            <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors text-2xl leading-none">&times;</button>
+
+            <UnlockedBonusIcon />
+            
+            <h2 className="text-2xl font-bold mb-3 text-white">
                 {isReferred ? "You've Been Invited!" : "New Miner Bonus Unlocked!"}
             </h2>
-            <p className="text-text-secondary mb-4">
+            <p className="text-slate-400 mb-6 max-w-xs mx-auto">
               {isReferred 
-                ? "A friend has invited you to join ETH Mining Nexus. Connect to claim your bonus and start mining!"
-                : <>Connect your wallet to claim a <span className="font-bold text-brand-sky">0.05 ETH</span> head start on your mining journey.</>
+                ? "Your friend has sent you a bonus. Connect your wallet to claim it and start mining."
+                : "Connect your wallet to claim a head start on your mining journey."
               }
             </p>
-            <div className="bg-white/30 border border-white/40 rounded-lg p-4 my-6">
-                <p className="text-sm text-text-secondary">Your Bonus:</p>
-                <p className="text-3xl font-bold flex items-center justify-center text-text-primary">
-                    <EthereumLogo className="w-7 h-7 mr-2" />
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 my-6">
+                <p className="text-sm text-brand-sky-light font-semibold">YOUR BONUS</p>
+                <p className="text-4xl font-bold flex items-center justify-center text-white my-1">
                     0.05 ETH
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Automatically added to your balance upon connection.</p>
+                <p className="text-xs text-slate-500">Automatically added to your balance upon connection.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
                 <button
                     onClick={onConnect}
-                    className="w-full bg-gradient-to-r from-brand-sky to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-md transition-all transform hover:scale-105 shadow-lg"
+                    className="w-full bg-gradient-to-r from-brand-sky to-blue-600 hover:brightness-110 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-brand-sky/20 animate-pulse-fast"
                 >
                     Connect &amp; Claim Bonus
                 </button>
                 <button
                     onClick={onClose}
-                    className="w-full bg-gray-200/60 hover:bg-gray-300/60 text-text-primary font-semibold py-3 px-4 rounded-md transition-colors"
+                    className="w-full bg-slate-700/50 hover:bg-slate-700 text-slate-300 font-semibold py-3 px-4 rounded-lg transition-colors"
                 >
                     {isReferred ? 'Browse Site' : 'Explore First'}
                 </button>
@@ -55,19 +66,13 @@ const EngagementModal: React.FC<EngagementModalProps> = ({ onClose, onConnect, r
         </div>
       </div>
        <style>{`
-        @keyframes fade-in-up {
-          0% {
-            opacity: 0;
-            transform: translateY(20px) scale(0.98);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+        @keyframes fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
+        @keyframes scale-in { 
+          0% { opacity: 0; transform: scale(0.95) translateY(10px); } 
+          100% { opacity: 1; transform: scale(1) translateY(0); } 
         }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.4s ease-out forwards;
-        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        .animate-scale-in { animation: scale-in 0.3s ease-out forwards; }
       `}</style>
     </div>
   );

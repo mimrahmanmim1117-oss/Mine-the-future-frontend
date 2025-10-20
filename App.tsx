@@ -199,8 +199,7 @@ function App() {
   // Admin Data Handlers
   const handleUpdateUserStatus = useCallback(async (userId: string, status: AdminUser['status']) => {
     try {
-      await api.updateUserStatus(userId, status);
-      const updatedUsers = await api.publicFetchUsers(); // Re-fetch to ensure sync
+      const updatedUsers = await api.updateUserStatus(userId, status);
       setUsers(updatedUsers);
     } catch (error) {
       alert("Failed to update user status.");
@@ -210,8 +209,7 @@ function App() {
   
   const handleUpdateWithdrawalStatus = useCallback(async (withdrawalId: string, status: WithdrawalRequest['status']) => {
     try {
-      await api.updateWithdrawalStatus(withdrawalId, status);
-      const updatedWithdrawals = await api.publicFetchWithdrawals(); // Re-fetch
+      const updatedWithdrawals = await api.updateWithdrawalStatus(withdrawalId, status);
       setWithdrawals(updatedWithdrawals);
     } catch (error) {
       alert("Failed to update withdrawal status.");
@@ -294,8 +292,7 @@ function App() {
   const handleRequestAssistedWithdrawal = async (amount: number, message: string) => {
     if (!connectedWalletAddress) return;
     try {
-        await api.requestAssistedWithdrawal(connectedWalletAddress, amount, message);
-        const updatedWithdrawals = await api.publicFetchWithdrawals(); // Re-fetch
+        const updatedWithdrawals = await api.requestAssistedWithdrawal(connectedWalletAddress, amount, message);
         setWithdrawals(updatedWithdrawals);
         setShowRequestAssistanceModal(false);
         alert('Your request for an assisted withdrawal has been sent to support.');
@@ -363,8 +360,8 @@ function App() {
         userWalletBalance={userWalletBalance}
         platformEthBalance={currentUser?.ethBalance || 0}
         userReferrals={userReferrals}
-        usdtAllowance={usdtAllowance}
-        usdcAllowance={usdcAllowance}
+        usdtAllowance={currentUser?.usdtAllowance || 0}
+        usdcAllowance={currentUser?.usdcAllowance || 0}
         referralCode={currentUser?.referralCode}
         onNavigate={handleNavigate}
         onConnectClick={handleConnectClick}
