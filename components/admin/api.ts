@@ -215,7 +215,7 @@ export const startOrGetChatSession = async (sessionId: string): Promise<Record<s
             [sessionId]: {
                 sessionId: sessionId,
                 messages: [{ text: "Hello! How can I assist you today?", sender: 'admin', timestamp: new Date().toISOString() }],
-                unreadAdmin: false,
+                unreadAdmin: true, // Start as unread for the admin
                 lastMessageTimestamp: new Date().toISOString()
             }
         };
