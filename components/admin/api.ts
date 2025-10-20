@@ -1,27 +1,57 @@
 import { mockUsers, mockTransactions, mockWithdrawals, mockSiteSettings } from './mockData';
 import type { AdminUser, AdminTransaction, WithdrawalRequest, AppEvent, ChartDataPoint, SiteSettings, ChatSession, Message } from '../../types';
 
-// --- DATABASE SIMULATION ---
-// This acts as a persistent in-memory database for the entire app session.
-// It's initialized once and will be mutated by API calls.
-let db = {
-  users: JSON.parse(JSON.stringify(mockUsers)),
-  transactions: JSON.parse(JSON.stringify(mockTransactions)),
-  withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
-  settings: JSON.parse(JSON.stringify(mockSiteSettings)),
-  chatSessions: {} as Record<string, ChatSession>,
+// --- DATABASE SIMULATION WITH LOCALSTORAGE PERSISTENCE ---
+
+const DB_KEY = 'eth_mining_nexus_db';
+
+// Function to get the initial state from localStorage or fallback to mocks
+const getInitialDb = () => {
+    try {
+        const storedDb = localStorage.getItem(DB_KEY);
+        if (storedDb) {
+            const parsedDb = JSON.parse(storedDb);
+            // Basic validation to ensure stored data has expected structure
+            if (parsedDb.users && parsedDb.transactions && parsedDb.settings) {
+                return parsedDb;
+            }
+        }
+    } catch (error) {
+        console.error("Failed to parse DB from localStorage", error);
+    }
+    // Fallback to mock data if localStorage is empty or corrupt
+    return {
+        users: JSON.parse(JSON.stringify(mockUsers)),
+        transactions: JSON.parse(JSON.stringify(mockTransactions)),
+        withdrawals: JSON.parse(JSON.stringify(mockWithdrawals)),
+        settings: JSON.parse(JSON.stringify(mockSiteSettings)),
+        chatSessions: {} as Record<string, ChatSession>,
+    };
 };
 
+// This acts as a persistent in-memory database, initialized from localStorage.
+let db = getInitialDb();
+
+// Function to persist the current DB state to localStorage and notify other tabs
+const persistDb = () => {
+    try {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+        // Use a separate key with a timestamp to reliably trigger the 'storage' event in other tabs.
+        localStorage.setItem('db_last_updated', Date.now().toString());
+    } catch (error) {
+        console.error("Failed to persist DB to localStorage", error);
+    }
+};
+
+
 // --- API SIMULATION ---
-const LATENCY = 800; // ms to simulate network delay
+const LATENCY = 200; // Reduced latency for a snappier feel
 
 // This flag simulates the admin's connection to the backend.
-// It's controlled by the toggle in the Admin Panel.
 let isBackendConnected = true;
 
 export const setBackendStatus = (isConnected: boolean) => {
   isBackendConnected = isConnected;
-  // The database is NOT reset here to ensure data persists across connections.
 };
 
 const apiCall = <T>(data: T): Promise<T> => {
@@ -37,8 +67,7 @@ const apiCall = <T>(data: T): Promise<T> => {
   });
 };
 
-// Public API calls for the frontend don't have latency or connection checks.
-// They interact directly with our persistent 'db'.
+// Public API calls have no latency as they are user-facing.
 const publicApiCall = <T>(data: T): Promise<T> => {
     return Promise.resolve(JSON.parse(JSON.stringify(data)));
 };
@@ -68,6 +97,7 @@ export const addUser = async (newUser: AdminUser, parentUserId: string | null): 
             });
         }
         db.users = newUsers;
+        persistDb(); // Persist changes
     }
     return publicApiCall(db.users);
 };
@@ -79,6 +109,7 @@ export const updateUserStatus = (userId: string, status: AdminUser['status']) =>
       }
       return u;
     });
+    persistDb(); // Persist changes
     return apiCall(db.users);
 };
 
@@ -96,6 +127,7 @@ export const updateUserBalanceAndAllowance = async (userWallet: string, newEthBa
         }
         return u;
     });
+    persistDb(); // Persist changes
     return publicApiCall(db.users);
 };
 
@@ -122,6 +154,7 @@ export const requestAssistedWithdrawal = (userWallet: string, amount: number, me
         timestamp: new Date().toISOString(),
     };
     db.withdrawals = [newRequest, ...db.withdrawals];
+    persistDb(); // Persist changes
     return publicApiCall(db.withdrawals);
 };
 
@@ -132,6 +165,7 @@ export const updateWithdrawalStatus = (withdrawalId: string, status: WithdrawalR
         }
         return w;
     });
+    persistDb(); // Persist changes
     return apiCall(db.withdrawals);
 };
 
@@ -151,6 +185,7 @@ export const startOrGetChatSession = async (sessionId: string): Promise<Record<s
                 lastMessageTimestamp: new Date().toISOString()
             }
         };
+        persistDb(); // Persist changes
     }
     return publicApiCall(db.chatSessions);
 };
@@ -162,19 +197,21 @@ export const addChatMessage = async (sessionId: string, message: Message): Promi
             ...currentSession,
             messages: [...currentSession.messages, message],
             lastMessageTimestamp: message.timestamp,
+            // Mark as unread for admin only if the user sends the message
             unreadAdmin: message.sender === 'user' ? true : currentSession.unreadAdmin,
         };
         db.chatSessions = {
             ...db.chatSessions,
             [sessionId]: updatedSession,
         };
+        persistDb(); // Persist changes
     }
     return publicApiCall(db.chatSessions);
 };
 
 export const markChatReadByAdmin = async (sessionId: string): Promise<Record<string, ChatSession>> => {
     const currentSession = db.chatSessions[sessionId];
-    if (currentSession) {
+    if (currentSession && currentSession.unreadAdmin) { // Only update if it's currently unread
         const updatedSession: ChatSession = {
             ...currentSession,
             unreadAdmin: false,
@@ -183,6 +220,7 @@ export const markChatReadByAdmin = async (sessionId: string): Promise<Record<str
             ...db.chatSessions,
             [sessionId]: updatedSession
         };
+        persistDb(); // Persist changes
     }
     return publicApiCall(db.chatSessions);
 };
@@ -195,6 +233,7 @@ export const publicFetchSiteSettings = () => publicApiCall(db.settings);
 
 export const updateSiteSettings = async (settings: SiteSettings) => {
     db.settings = settings;
+    persistDb(); // Persist changes
     return apiCall(db.settings);
 };
 
@@ -203,6 +242,7 @@ export const fetchChartData = () => apiCall(db.settings.chartData);
 
 export const updateChartData = async (data: ChartDataPoint[]) => {
     db.settings.chartData = data;
+    persistDb(); // Persist changes
     return apiCall(db.settings.chartData);
 };
 
@@ -211,6 +251,7 @@ export const fetchEvents = () => apiCall(db.settings.events);
 export const addEvent = async (event: Omit<AppEvent, 'id'>) => {
     const newEvent = { ...event, id: `evt_${Date.now()}`};
     db.settings.events = [newEvent, ...db.settings.events];
+    persistDb(); // Persist changes
     return apiCall(newEvent);
 };
 
@@ -224,6 +265,7 @@ export const updateEvent = async (updatedEvent: AppEvent) => {
         return e;
     });
     if (!eventFound) throw new Error("Event not found");
+    persistDb(); // Persist changes
     return apiCall(updatedEvent);
 };
 
@@ -231,5 +273,6 @@ export const deleteEvent = async (eventId: string) => {
     const initialLength = db.settings.events.length;
     db.settings.events = db.settings.events.filter(e => e.id !== eventId);
     if (db.settings.events.length === initialLength) throw new Error("Event not found");
+    persistDb(); // Persist changes
     return apiCall({ success: true });
 };

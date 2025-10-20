@@ -49,7 +49,7 @@ function App() {
   // === DATA FETCHING & HANDLERS ===
   const loadInitialData = useCallback(async () => {
       try {
-          setIsLoading(true);
+          // No need for setIsLoading(true) here as it could cause flashes on sync
           const [initialUsers, initialSessions, initialTransactions, initialWithdrawals, settings] = await Promise.all([
               api.publicFetchUsers(),
               api.getChatSessions(),
@@ -330,6 +330,24 @@ function App() {
 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [loadInitialData]);
+  
+  // This useEffect hook is the key to real-time cross-tab synchronization.
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      // When the 'db_last_updated' key changes in localStorage, it means another tab
+      // has modified the shared data. We then trigger a data reload in this tab.
+      if (event.key === 'db_last_updated') {
+        loadInitialData();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadInitialData]);
+
 
   if (isAdminAuthenticated && isAdminView) {
     return (
