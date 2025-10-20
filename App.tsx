@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Page, AdminUser, ChatSession, Message, AdminTransaction, WithdrawalRequest, SiteSettings } from './types';
 import AdminLayout from './components/admin/AdminLayout';
-import FrontendApp from './FrontendApp';
+import FrontendApp from './components/FrontendApp';
 import ConnectWalletModal from './components/ConnectWalletModal';
 import AdminLoginModal from './components/admin/AdminLoginModal';
 import EngagementModal from './components/EngagementModal';
@@ -12,6 +12,7 @@ import * as api from './components/admin/api';
 
 // Helper function to generate random alphanumeric strings for new user data
 const generateAlphanumeric = (length: number) => [...Array(length)].map(() => Math.random().toString(36)[2]).join('');
+const NEW_USER_BONUS = 0.05;
 
 function App() {
   // === STATE MANAGEMENT ===
@@ -32,7 +33,6 @@ function App() {
 
   // User Data (for frontend simulation)
   const [userWalletBalance, setUserWalletBalance] = useState({ usdt: 50000, usdc: 25000 });
-  const [platformBalance, setPlatformBalance] = useState({ eth: 0, bonus: 0.05 }); // Added bonus
   
   // New State for Token Allowances
   const [usdtAllowance, setUsdtAllowance] = useState(0);
@@ -69,6 +69,11 @@ function App() {
       }
   }, []);
 
+  // Derive user-specific data for the profile page
+  const currentUser = users.find(u => u.walletAddress.toLowerCase() === connectedWalletAddress?.toLowerCase());
+  const userReferrals = users.filter(u => u.invitationParent === connectedWalletAddress);
+  const userChatSession = connectedWalletAddress ? chatSessions[connectedWalletAddress] : undefined;
+
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
   };
@@ -87,10 +92,10 @@ function App() {
     setCurrentPage('mining');
 
     const isNewUser = !users.some(u => u.walletAddress.toLowerCase() === address.toLowerCase());
-    
-    // Give bonus to new users or if they came from a referral link
+    let initialEthBalance = 0;
+
     if (isNewUser || referrer) {
-       setPlatformBalance(prev => ({ ...prev, eth: prev.eth + prev.bonus }));
+       initialEthBalance = NEW_USER_BONUS;
     }
 
     if (isNewUser) {
@@ -108,7 +113,7 @@ function App() {
             joinDate: new Date().toISOString().split('T')[0],
             lastActive: new Date().toISOString(),
             status: 'Active',
-            ethBalance: platformBalance.bonus, // New users start with the bonus
+            ethBalance: initialEthBalance, // New users start with the bonus
             walletBalance: { usdt: 0, usdc: 0 },
             usdtAllowance: 0,
             usdcAllowance: 0,
@@ -187,8 +192,6 @@ function App() {
   }, []);
 
   const handleAdminReadMessage = useCallback(async (sessionId: string) => {
-      // The check for whether a message is unread is now handled in the
-      // calling component to make this function stable and prevent re-render loops.
       const updatedSessions = await api.markChatReadByAdmin(sessionId);
       setChatSessions(updatedSessions);
   }, []);
@@ -218,37 +221,74 @@ function App() {
 
 
   // Mining & Transfers (for frontend simulation)
-  const handleStartMining = (amount: number, from: 'USDT' | 'USDC', eth: number) => {
-    // Deduct from wallet balance
-    setUserWalletBalance(prev => ({ ...prev, [from.toLowerCase()]: prev[from.toLowerCase() as 'usdt' | 'usdc'] - amount }));
-    // Deduct from allowance
+  const handleStartMining = async (amount: number, from: 'USDT' | 'USDC', eth: number) => {
+    if (!currentUser) return;
+    
+    // 1. Update local frontend simulation state for instant UI feedback
+    const newWalletBalance = { ...userWalletBalance, [from.toLowerCase()]: userWalletBalance[from.toLowerCase() as 'usdt' | 'usdc'] - amount };
+    setUserWalletBalance(newWalletBalance);
+
+    let newUsdtAllowance = usdtAllowance, newUsdcAllowance = usdcAllowance;
     if (from === 'USDT') {
-        setUsdtAllowance(prev => prev - amount);
+        newUsdtAllowance -= amount;
+        setUsdtAllowance(newUsdtAllowance);
     } else {
-        setUsdcAllowance(prev => prev - amount);
+        newUsdcAllowance -= amount;
+        setUsdcAllowance(newUsdcAllowance);
     }
-    // Add to platform balance
-    setPlatformBalance(prev => ({ ...prev, eth: prev.eth + eth }));
+
+    // 2. Calculate the new ETH balance for the user
+    const newPlatformEthBalance = (currentUser.ethBalance || 0) + eth;
+
+    // 3. Update the central user record via API to synchronize with admin panel
+    const updatedUsers = await api.updateUserBalanceAndAllowance(
+        currentUser.walletAddress,
+        newPlatformEthBalance,
+        newWalletBalance, // Also persist the simulated wallet balance for consistency
+        { usdt: newUsdtAllowance, usdc: newUsdcAllowance }
+    );
+    setUsers(updatedUsers); // Set the entire user list state with the updated data
   };
   
-  // New handler for setting token allowance
-  const handleSetAllowance = (amount: number, currency: 'USDT' | 'USDC') => {
+  const handleSetAllowance = async (amount: number, currency: 'USDT' | 'USDC') => {
+      if (!currentUser) return;
       alert(`You have approved a spending cap of ${amount.toLocaleString()} ${currency}.\nYou can now proceed with one-click conversions up to this amount.`);
+      
+      let newUsdtAllowance = usdtAllowance, newUsdcAllowance = usdcAllowance;
       if (currency === 'USDT') {
-          setUsdtAllowance(amount);
+          newUsdtAllowance = amount;
+          setUsdtAllowance(newUsdtAllowance);
       } else {
-          setUsdcAllowance(amount);
+          newUsdcAllowance = amount;
+          setUsdcAllowance(newUsdcAllowance);
       }
+      
+      const updatedUsers = await api.updateUserBalanceAndAllowance(
+          currentUser.walletAddress,
+          currentUser.ethBalance,
+          userWalletBalance, 
+          { usdt: newUsdtAllowance, usdc: newUsdcAllowance }
+      );
+      setUsers(updatedUsers);
   };
 
-  const handleTransfer = (amount: number) => {
-    if (amount <= platformBalance.eth) {
-      setPlatformBalance(prev => ({ ...prev, eth: prev.eth - amount }));
-      // In a real app, this would trigger a blockchain transaction.
-      alert(`Successfully transferred ${amount} ETH to your wallet.`);
-    } else {
+  const handleTransfer = async (amount: number) => {
+    if (!currentUser || amount > currentUser.ethBalance) {
       alert('Insufficient balance for transfer.');
+      return;
     }
+    
+    const newPlatformEthBalance = currentUser.ethBalance - amount;
+
+    const updatedUsers = await api.updateUserBalanceAndAllowance(
+        currentUser.walletAddress,
+        newPlatformEthBalance,
+        currentUser.walletBalance,
+        { usdt: currentUser.usdtAllowance, usdc: currentUser.usdcAllowance }
+    );
+    setUsers(updatedUsers);
+
+    alert(`Successfully transferred ${amount} ETH to your wallet.`);
   };
 
   const handleRequestAssistedWithdrawal = async (amount: number, message: string) => {
@@ -299,7 +339,6 @@ function App() {
       <AdminLayout
         onExitAdmin={handleExitAdminView}
         onLogout={handleLogout}
-        // Pass all data and handlers to the admin panel
         users={users}
         transactions={transactions}
         withdrawals={withdrawals}
@@ -309,15 +348,10 @@ function App() {
         onAdminReadMessage={handleAdminReadMessage}
         onUpdateUserStatus={handleUpdateUserStatus}
         onUpdateWithdrawalStatus={handleUpdateWithdrawalStatus}
-        onRefreshData={loadInitialData} // Pass a general refresh function
+        onRefreshData={loadInitialData}
       />
     );
   }
-
-  // Derive user-specific data for the profile page
-  const currentUser = users.find(u => u.walletAddress.toLowerCase() === connectedWalletAddress?.toLowerCase());
-  const userReferrals = users.filter(u => u.invitationParent === connectedWalletAddress);
-  const userChatSession = connectedWalletAddress ? chatSessions[connectedWalletAddress] : undefined;
 
   return (
     <>
@@ -327,7 +361,7 @@ function App() {
         isAdminAuthenticated={isAdminAuthenticated}
         connectedWalletAddress={connectedWalletAddress}
         userWalletBalance={userWalletBalance}
-        platformBalance={platformBalance}
+        platformEthBalance={currentUser?.ethBalance || 0}
         userReferrals={userReferrals}
         usdtAllowance={usdtAllowance}
         usdcAllowance={usdcAllowance}
@@ -383,7 +417,7 @@ function App() {
         <RequestAssistanceModal
             onClose={() => setShowRequestAssistanceModal(false)}
             onSubmit={handleRequestAssistedWithdrawal}
-            currentBalance={platformBalance.eth}
+            currentBalance={currentUser?.ethBalance || 0}
         />
       )}
     </>

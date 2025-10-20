@@ -76,12 +76,29 @@ export const updateUserStatus = (userId: string, status: AdminUser['status']) =>
     let updatedUser: AdminUser | undefined;
     db.users = db.users.map(u => {
       if (u.id === userId) {
-        updatedUser = { ...u, status };
+        updatedUser = { ...u, status, lastActive: new Date().toISOString() };
         return updatedUser;
       }
       return u;
     });
     return apiCall(updatedUser);
+};
+
+export const updateUserBalanceAndAllowance = async (userWallet: string, newEthBalance: number, newWalletBalance: {usdt: number, usdc: number}, newAllowance: {usdt: number, usdc: number}) => {
+    db.users = db.users.map(u => {
+        if (u.walletAddress.toLowerCase() === userWallet.toLowerCase()) {
+            return { 
+                ...u, 
+                ethBalance: newEthBalance,
+                walletBalance: newWalletBalance,
+                usdtAllowance: newAllowance.usdt,
+                usdcAllowance: newAllowance.usdc,
+                lastActive: new Date().toISOString()
+            };
+        }
+        return u;
+    });
+    return publicApiCall(db.users);
 };
 
 export const fetchTransactions = () => apiCall(db.transactions);

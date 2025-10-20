@@ -12,7 +12,7 @@ interface FrontendAppProps {
   isAdminAuthenticated: boolean;
   connectedWalletAddress: string | null;
   userWalletBalance: { usdt: number; usdc: number };
-  platformBalance: { eth: number };
+  platformEthBalance: number;
   userReferrals: AdminUser[];
   usdtAllowance: number;
   usdcAllowance: number;
@@ -36,7 +36,7 @@ const FrontendApp: React.FC<FrontendAppProps> = (props) => {
     isAdminAuthenticated,
     connectedWalletAddress,
     userWalletBalance,
-    platformBalance,
+    platformEthBalance,
     userReferrals,
     usdtAllowance,
     usdcAllowance,
@@ -63,7 +63,7 @@ const FrontendApp: React.FC<FrontendAppProps> = (props) => {
         return <LandingPage onStartMiningClick={() => onNavigate('mining')} />;
       case 'profile':
         return <ProfilePage 
-            ethBalance={platformBalance.eth} 
+            ethBalance={platformEthBalance} 
             onTransfer={onTransfer}
             userWalletBalance={userWalletBalance}
             referrals={userReferrals}
